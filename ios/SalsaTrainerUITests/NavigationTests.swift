@@ -19,4 +19,24 @@ final class NavigationTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Salsa Figuren"].waitForExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.lifetime = .keepAlways; add(screenshot)
     }
+    func testMultiVideoPlayerAndManualOrientation() {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--with-videos"]; app.launch()
+        let card = app.buttons["figure-Ocho"]
+        XCTAssertTrue(card.waitForExistence(timeout: 30)); card.tap()
+        XCTAssertTrue(app.buttons["scaleVideo"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["scaleVideo"].label, "Fit")
+        app.buttons["scaleVideo"].tap(); XCTAssertEqual(app.buttons["scaleVideo"].label, "Crop")
+        app.buttons["rotateVideo"].tap()
+        let landscape = NSPredicate { _, _ in app.frame.width > app.frame.height }
+        expectation(for: landscape, evaluatedWith: nil); waitForExpectations(timeout: 10)
+        XCTAssertEqual(app.buttons["scaleVideo"].label, "Crop")
+        app.buttons["videoSelector"].tap(); app.buttons["Lado"].tap()
+        XCTAssertEqual(app.buttons["scaleVideo"].label, "Crop")
+        app.buttons["rotateVideo"].tap()
+        let portrait = NSPredicate { _, _ in app.frame.height > app.frame.width }
+        expectation(for: portrait, evaluatedWith: nil); waitForExpectations(timeout: 10)
+        app.buttons["Zurück"].tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+    }
+
 }

@@ -34,6 +34,6 @@ Für ein TestFlight-Release das vorhandene App-Icon prüfen, Release auf einem e
 
 ## Tests und Grenzen
 
-`LibraryTests`: Byte-identische Kopie, unveränderte Originale, Bestätigungspflicht, Rollback bei zweitem Video, Umbenennen/Reihenfolge/Entfernen, Konflikterkennung, fehlende Quelle, Mindestvideozahl/fremde Dateien, Löschen, Pfadprüfung, Loopgrenzen und echtes AVFoundation-Video. `NavigationTests`: Übersicht, Editor, Speichersperre ohne Video und Verwerfen-Dialog.
+`LibraryTests`: Byte-identische Kopie, unveränderte Originale, Bestätigungspflicht, Rollback bei zweitem Video, Umbenennen/Reihenfolge/Entfernen, Konflikterkennung, fehlende Quelle, Mindestvideozahl/fremde Dateien, Löschen, Pfadprüfung, Loopgrenzen echtes AVFoundation-Video sowie Videowechsel mit Beibehaltung der Lerneinstellungen und Pausieren während eines Sprungs. `NavigationTests`: Übersicht, Editor, Speichersperre ohne Video Verwerfen-Dialog sowie Multi-Video-Player, Fit/Crop und manueller Hoch-/Querformatwechsel mit synthetischen Videos.
 
 Der tatsächliche CI-Status steht unter Actions; nur ein grüner Lauf bestätigt Build und Tests. Hardware-Tests (insbesondere echte Fotos-/Dateien-Freigabe, große Videos, Geräteausrichtung, A–B-Wiedergabe und App-Group-Signierung) bleiben vor TestFlight erforderlich. Android-Daten werden nicht automatisch auf iOS übertragen.

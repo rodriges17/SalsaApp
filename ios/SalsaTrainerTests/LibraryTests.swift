@@ -111,8 +111,8 @@ final class LibraryTests: XCTestCase {
         do { try await LibraryDisk.save(root: root, figure: Figure(title: "Ocho"), drafts: [input], originalRevision: nil); XCTFail("Invalid movie") } catch {}
         XCTAssertTrue(try LibraryDisk.read(root).isEmpty)
     }
-    func testRealMovieValidation() async throws {
-        let url = originals.appendingPathComponent("real.mov")
+    func makeMovie(_ name: String = "real.mov") async throws -> URL {
+        let url = originals.appendingPathComponent(name)
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 160, AVVideoHeightKey: 120])
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB, kCVPixelBufferWidthKey as String: 160, kCVPixelBufferHeightKey as String: 120])
@@ -129,8 +129,41 @@ final class LibraryTests: XCTestCase {
         }
         input.markAsFinished(); await writer.finishWriting()
         XCTAssertEqual(writer.status, .completed)
+        return url
+    }
+    func testRealMovieValidation() async throws {
+        let url = try await makeMovie()
         var draft = VideoDraft(source: url, title: "Real"); draft.confirmed = true
         try await LibraryDisk.save(root: root, figure: Figure(title: "Real"), drafts: [draft], originalRevision: nil)
         XCTAssertEqual(try LibraryDisk.read(root).first?.videos.count, 1)
     }
+    @MainActor func testPlayerSelectionResetsMarksButKeepsLearningSettings() async throws {
+        let source = try await makeMovie()
+        var draft = VideoDraft(source: source, title: "One"); draft.confirmed = true
+        var second = VideoDraft(source: source, title: "Two"); second.confirmed = true
+        try await LibraryDisk.save(root: root, figure: Figure(title: "Player"), drafts: [draft, second], originalRevision: nil)
+        let figure = try XCTUnwrap(LibraryDisk.read(root).first)
+        let model = LearningPlayer(figure: figure, root: root)
+        defer { model.stop() }
+        for _ in 0..<200 {
+            if model.duration > 0 { break }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertGreaterThan(model.duration, 0)
+        model.setSpeed(0.5); model.crop = true; model.landscape = true; model.fullLoop = true
+        model.range.setA(0.1); model.range.setB(0.5)
+        model.select(1, autoplay: false)
+        XCTAssertEqual(model.index, 1); XCTAssertEqual(model.position, 0)
+        XCTAssertNil(model.range.a); XCTAssertNil(model.range.b)
+        XCTAssertEqual(model.speed, 0.5); XCTAssertTrue(model.crop); XCTAssertTrue(model.landscape); XCTAssertTrue(model.fullLoop)
+        for _ in 0..<200 {
+            if model.duration > 0 { break }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        model.play(); XCTAssertTrue(model.playing)
+        model.seek(0.2); model.pause()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertFalse(model.playing); XCTAssertEqual(model.player.rate, 0)
+    }
+
 }

@@ -36,7 +36,7 @@ targets:
     sources:
       - path: SalsaShare
       - path: SalsaTrainer
-        excludes: [App.swift, Player.swift, Assets.xcassets]
+        excludes: [App.swift, Player.swift, TestFixtures.swift, Assets.xcassets]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rodriges17.SalsaTrainer.Share

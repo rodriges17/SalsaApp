@@ -68,7 +68,7 @@ struct OverviewScreen: View {
                         ContentUnavailableView(query.isEmpty ? "Deine erste Figur" : "Keine Treffer", systemImage: "figure.dance", description: Text("Füge eigene Videos hinzu und übe in deinem Tempo."))
                     }
                     ForEach(visible) { figure in
-                        Button { learning = figure } label: { FigureCard(figure: figure, root: store.root) }.buttonStyle(.plain)
+                        Button { learning = figure } label: { FigureCard(figure: figure, root: store.root) }.buttonStyle(.plain).accessibilityIdentifier("figure-" + figure.title)
                             .contextMenu {
                                 Button("Bearbeiten") { editor = EditRequest(figure: figure) }
                                 Button("Löschen", role: .destructive) { deleting = figure }

@@ -32,12 +32,27 @@ jobs:
               raise SystemExit('No iPhone simulator installed')
           print('SIMULATOR_ID=' + phones[0]['udid'])
           PY
-      - name: Run unit and UI tests
+      - name: Compile app, extension and tests
+        timeout-minutes: 12
         run: |
           set -o pipefail
-          xcodebuild test -project ios/SalsaTrainer.xcodeproj -scheme SalsaTrainer \
+          xcodebuild build-for-testing -project ios/SalsaTrainer.xcodeproj -scheme SalsaTrainer \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO | tee ios-build.log
+      - name: Boot iPhone simulator
+        timeout-minutes: 5
+        run: |
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+      - name: Run unit and UI tests
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project ios/SalsaTrainer.xcodeproj -scheme SalsaTrainer \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -resultBundlePath TestResults.xcresult -derivedDataPath DerivedData \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 60 -maximum-test-execution-time-allowance 120 \
             CODE_SIGNING_ALLOWED=NO | tee ios-test.log
       - name: Build unsigned device archive
         run: |
@@ -52,6 +67,7 @@ jobs:
         with:
           name: ios-test-results
           path: |
+            ios-build.log
             ios-test.log
             ios-archive.log
             TestResults.xcresult

@@ -18,6 +18,7 @@ import Combine
     private var ended: NSObjectProtocol?
     private var observation: NSKeyValueObservation?
     private var seeking = false
+    private var seekVersion = 0
     let figure: Figure
     let root: URL?
     init(figure: Figure, root: URL?) {
@@ -38,7 +39,8 @@ import Combine
     }
     func select(_ value: Int, autoplay: Bool = true) {
         guard figure.videos.indices.contains(value), let root else { error = "Kein Video verfügbar."; return }
-        player.pause(); playing = false; index = value; range = LoopRange(); position = 0; duration = 0; error = nil
+        seekVersion += 1; seeking = false
+        player.pause(); playing = autoplay; index = value; range = LoopRange(); position = 0; duration = 0; error = nil
         do {
             let url = try LibraryDisk.safeURL(figure.videos[value].fileName, root: root)
             guard FileManager.default.fileExists(atPath: url.path) else { throw SalsaError.message("Die lokale Videodatei fehlt.") }
@@ -50,29 +52,31 @@ import Combine
                     if item.status == .readyToPlay {
                         let seconds = item.duration.seconds
                         self.duration = seconds.isFinite ? seconds : 0
-                        if autoplay { self.play() }
+                        if self.playing { self.play() }
                     } else if item.status == .failed { self.error = item.error?.localizedDescription ?? "Video nicht abspielbar."; self.pause() }
                 }
             }
             player.replaceCurrentItem(with: item)
             // status may already be ready before the observation's asynchronous callback runs.
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = error.localizedDescription; pause() }
     }
     func play() {
         guard player.currentItem?.status == .readyToPlay else { return }
-        if duration > 0, position >= duration { seek(range.a ?? 0, resume: true); return }
+        if duration > 0, position >= duration { seek(range.b != nil ? (range.a ?? 0) : 0, resume: true); return }
         playing = true; player.playImmediately(atRate: speed); UIApplication.shared.isIdleTimerDisabled = true
     }
     func pause() { player.pause(); playing = false; UIApplication.shared.isIdleTimerDisabled = false }
     func setSpeed(_ value: Float) { speed = value; if playing { player.rate = value } }
     func seek(_ value: Double, resume: Bool? = nil) {
         let shouldResume = resume ?? playing
-        seeking = true
+        seekVersion += 1
+        let version = seekVersion
+        seeking = true; playing = shouldResume; player.pause()
         let target = max(0, min(duration, value)); position = target
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self else { return }; self.seeking = false
-                if shouldResume { self.play() }
+                guard let self, version == self.seekVersion else { return }; self.seeking = false
+                if self.playing { self.play() }
             }
         }
     }
@@ -110,6 +114,7 @@ struct LearningScreen: View {
     @StateObject private var model: LearningPlayer
     @Environment(\.scenePhase) private var scenePhase
     let finish: () -> Void
+    @State private var orientationError: String?
     init(figure: Figure, root: URL?, finish: @escaping () -> Void) {
         _model = StateObject(wrappedValue: LearningPlayer(figure: figure, root: root)); self.finish = finish
     }
@@ -118,7 +123,7 @@ struct LearningScreen: View {
             HStack {
                 Button { model.stop(); OrientationControl.set(false); finish() } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }.accessibilityLabel("Zurück")
                 Text(model.figure.title).font(.headline).lineLimit(1); Spacer()
-                Button { model.landscape.toggle(); OrientationControl.set(model.landscape) } label: { Image(systemName: "rotate.right").frame(width: 44, height: 44) }.accessibilityLabel("Hochformat / Querformat")
+                Button { model.landscape.toggle(); OrientationControl.set(model.landscape) { message in model.landscape.toggle(); orientationError = message } } label: { Image(systemName: "rotate.right").frame(width: 44, height: 44) }.accessibilityLabel("Hochformat / Querformat").accessibilityIdentifier("rotateVideo")
             }
             if model.figure.videos.count > 1 {
                 Picker("Video", selection: Binding(get: { model.index }, set: { model.select($0) })) {
@@ -139,7 +144,7 @@ struct LearningScreen: View {
                     Button { model.seek(LoopRange.rewind(model.position)) } label: { Image(systemName: "gobackward.5") }.accessibilityLabel("5 Sekunden zurück")
                     Button { if model.playing { model.pause() } else { model.play() } } label: { Image(systemName: model.playing ? "pause.fill" : "play.fill") }.accessibilityLabel(model.playing ? "Pause" : "Abspielen")
                     Menu("\(String(format: "%g", model.speed))×") { ForEach([Float(0.25), 0.5, 0.75, 1], id: \.self) { value in Button("\(String(format: "%g", value))×") { model.setSpeed(value) } } }
-                    Button(model.crop ? "Crop" : "Fit") { model.crop.toggle() }
+                    Button(model.crop ? "Crop" : "Fit") { model.crop.toggle() }.accessibilityIdentifier("scaleVideo")
                     Button(model.fullLoop ? "Loop ✓" : "Loop") { model.fullLoop.toggle(); if model.fullLoop { model.range = LoopRange() } }
                     Button("A") { model.fullLoop = false; model.range.setA(model.position) }
                     Button("B") { model.fullLoop = false; model.range.setB(model.position) }.disabled(model.range.a == nil || model.position <= (model.range.a ?? 0) + 0.1)
@@ -152,9 +157,9 @@ struct LearningScreen: View {
             .onAppear { OrientationControl.set(false) }
             .onDisappear { model.stop(); OrientationControl.set(false) }
             .onChange(of: scenePhase) { _, phase in if phase != .active { model.pause() } }
-            .alert("Ausrichtung", isPresented: Binding(get: { OrientationControl.error != nil }, set: { if !$0 { OrientationControl.error = nil } })) {
-                Button("OK") { OrientationControl.error = nil }
-            } message: { Text(OrientationControl.error ?? "") }
+            .alert("Ausrichtung", isPresented: Binding(get: { orientationError != nil }, set: { if !$0 { orientationError = nil } })) {
+                Button("OK") { orientationError = nil }
+            } message: { Text(orientationError ?? "") }
     }
     private func time(_ seconds: Double) -> String { let value = Int(max(0, seconds.isFinite ? seconds : 0)); return String(format: "%d:%02d", value / 60, value % 60) }
 }
