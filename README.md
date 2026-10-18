@@ -13,7 +13,7 @@ Auf dem iPhone den Link in Safari öffnen → Teilen → **Zum Home-Bildschirm**
 - Ursprüngliches dunkles Design, Suche über Name/Beschreibung/Tags, Lernstände, Tags und Sortierung.
 - Figuren erstellen, bearbeiten und löschen; mehrere lokale Videos mit Namen, Reihenfolge, Ersetzen und Entfernen. Das erste Video liefert Vorschaubild und Dauer.
 - Import über den Foto-/Dateiauswahldialog. Jedes neue Video muss vor dem Speichern in der abspielbaren Vorschau bestätigt werden. Abgebrochene Ersatzvideos ändern die bisherige Liste nicht.
-- Video-Blobs, Metadaten, Reihenfolge und Vorschaubilder werden zusammen in einer **IndexedDB-Transaktion** gespeichert. Quotenfehler und Konflikte mit anderen Tabs rollen die Transaktion zurück. Originaldateien werden nicht verändert.
+- Videos werden in einem separaten lokalen **Cache-Storage-Medienspeicher** abgelegt; Metadaten, Reihenfolge und Verweise werden anschließend in einer **IndexedDB-Transaktion** übernommen. Bei Quotenfehlern oder Konflikten werden neue Mediendateien verworfen; bisherige Dateien bleiben bis nach dem erfolgreichen Commit erhalten. Kleine Vorschaubilder werden als Binärpuffer gespeichert, um WebKits Einschränkung bei IndexedDB-Blobs zu vermeiden. Originaldateien werden nicht verändert.
 - Zurück-Buttons und Browser-Zurück mit Verwerfen-Dialog für ungespeicherte Änderungen. Während des Speicherns kann der Editor nicht verlassen werden.
 - Lernplayer mit Videowahl, 0,25×/0,5×/0,75×/1×, −5 Sekunden, Fit/Crop, Gesamtloop und A–B-Schleife. Videowechsel löscht A/B, behält die übrigen Einstellungen. Hintergrund und geschlossene Ansicht pausieren die Wiedergabe. Bildschirm-Wachhalten wird genutzt, sofern der Browser es anbietet.
 - Manueller Formatknopf dreht die **Player-Ansicht** im Hochformat um 90°. Die Systemausrichtung kann eine iPhone-PWA nicht zuverlässig sperren. Native Vollbildwiedergabe ist zusätzlich verfügbar, soweit der Browser sie unterstützt.
@@ -27,7 +27,7 @@ Auf dem iPhone kann die PWA nicht als Empfangsziel für „Teilen“ registriert
 
 ### PWA-Tests und Entwicklung
 
-Die App selbst hat keine Laufzeit-Abhängigkeiten und keinen Buildschritt. `npm test` führt Logiktests aus. Der CI-Workflow installiert Playwright, erzeugt zwei synthetische H.264-Videos mit FFmpeg und testet Chromium/Mobilansicht sowie WebKit/iPhone-Ansicht. Browser-Tests umfassen Mehrfachimport, Vorschauen, Player-Einstellungen, A/B-Steuerung, Formatwechsel, Offline-Neustart und -Wiedergabe, Umbenennen/Reihenfolge, verworfenen Ersatz, Mindestvideozahl, Verwerfen, Löschen, ungültige Medien und Transaktionskonflikte. Screenshots und Fehlertraces liegen im Actions-Artefakt `pwa-browser-results`.
+Die App selbst hat keine Laufzeit-Abhängigkeiten und keinen Buildschritt. `npm test` führt Logiktests aus. Der CI-Workflow installiert Playwright, erzeugt zwei synthetische H.264-Videos mit FFmpeg und testet Chrome/Chromium mit MP4-Unterstützung in Mobilansicht sowie WebKit/iPhone-Ansicht. Browser-Tests umfassen Mehrfachimport, Vorschauen, Player-Einstellungen, A/B-Steuerung, Formatwechsel, Offline-Neustart und -Wiedergabe, Umbenennen/Reihenfolge, verworfenen Ersatz, Mindestvideozahl, Verwerfen, Löschen, ungültige Medien und Transaktionskonflikte. Screenshots und Fehlertraces liegen im Actions-Artefakt `pwa-browser-results`.
 
 ```sh
 npm install

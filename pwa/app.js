@@ -1,5 +1,5 @@
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
-import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage } from './storage.js';
+import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports } from './storage.js';
 
 const $ = id => document.getElementById(id);
 const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
@@ -9,7 +9,7 @@ let route = 'home', opening = false, toastTimer, reviewNext = false;
 let posterURLs = [], videoURL = null, previewURL = null;
 const channel = 'BroadcastChannel' in window ? new BroadcastChannel('salsa-trainer-library') : null;
 const loop = new ABLoop();
-let playIntent = false, mediaGeneration = 0, wakeLock = null;
+let playIntent = false, wakeLock = null;
 const video = $('learningVideo');
 
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4500); }
@@ -221,7 +221,7 @@ async function openPlayer(figure) {
 }
 function loadPlayerVideo(index, autoplay) {
   if (!learning?.records[index]) return;
-  mediaGeneration++; playIntent = autoplay; video.pause(); releaseWakeLock();
+  playIntent = autoplay; video.pause(); releaseWakeLock();
   if (videoURL) { video.removeAttribute('src'); video.load(); URL.revokeObjectURL(videoURL); }
   learning.index = index; $('playerVideoChoice').value = String(index); loop.clear(); updateLoop(); setError('playerError', null); $('videoLoading').hidden = false;
   $('seek').value = '0'; $('position').textContent = '0:00'; $('duration').textContent = timeLabel(learning.records[index].duration);
@@ -275,7 +275,7 @@ $('playerVideoChoice').onchange = () => { if (learning) loadPlayerVideo(Number($
 $('fullscreen').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else if ($('playerScreen').requestFullscreen) await $('playerScreen').requestFullscreen(); else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); else toast('Diese Ansicht nutzt bereits die verfügbare Displayfläche.'); } catch { toast('Vollbild wird von diesem Browser nicht freigegeben.'); } };
 $('playerBack').onclick = () => history.back();
 function closePlayer() {
-  pause(); mediaGeneration++; video.removeAttribute('src'); video.load(); if (videoURL) URL.revokeObjectURL(videoURL); videoURL = null; learning = null; loop.clear();
+  pause(); video.removeAttribute('src'); video.load(); if (videoURL) URL.revokeObjectURL(videoURL); videoURL = null; learning = null; loop.clear();
   $('playerScreen').hidden = true; $('overview').hidden = false; $('overview').inert = false; document.body.classList.remove('playing-screen');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); if (video.webkitDisplayingFullscreen) video.webkitExitFullscreen();
 }
@@ -303,4 +303,10 @@ if ('serviceWorker' in navigator) {
   }).catch(() => { $('offlineStatus').textContent = 'Offline-Vorbereitung fehlgeschlagen · bitte online neu laden'; });
 }
 window.addEventListener('offline', () => toast('Du bist offline. Deine gespeicherten Videos bleiben verfügbar.'));
-renderFilters(); await refresh();
+renderFilters();
+try { await cleanupInterruptedImports(); } catch { /* The initial refresh reports unavailable storage. */ }
+await refresh();
+
+// Keep the fixed save footer above the iOS software keyboard where Visual Viewport is available.
+function updateViewport() { document.documentElement.style.setProperty('--app-height', `${window.visualViewport?.height ?? innerHeight}px`); }
+window.visualViewport?.addEventListener('resize', updateViewport); updateViewport();

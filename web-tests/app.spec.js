@@ -79,8 +79,10 @@ test('rename, reorder, preview replacement cancellation, discard and deletion', 
   await expect(page.locator('#figureCount')).toHaveText('0 Figuren');
   expect(await page.evaluate(async () => {
     const { database } = await import('./storage.js'); const db = await database();
-    return new Promise(resolve => { const request = db.transaction('videos').objectStore('videos').count(); request.onsuccess = () => resolve(request.result); });
-  })).toBe(0);
+    const count = await new Promise(resolve => { const request = db.transaction('videos').objectStore('videos').count(); request.onsuccess = () => resolve(request.result); });
+    const { MEDIA_CACHE } = await import('./storage.js');
+    return { count, media: (await (await caches.open(MEDIA_CACHE)).keys()).length };
+  })).toEqual({ count: 0, media: 0 });
 });
 
 test('invalid preview cannot be saved and metadata conflicts roll back new blobs', async ({ page }) => {
@@ -102,4 +104,25 @@ test('invalid preview cannot be saved and metadata conflicts roll back new blobs
     return { rejected, count, title: (await listFigures())[0].title };
   });
   expect(result).toEqual({ rejected: true, count: 1, title: 'New name' });
+});
+
+test('failure during second media copy rolls back all newly staged files', async ({ page }) => {
+  await start(page);
+  const result = await page.evaluate(async () => {
+    const { saveFigure, listFigures, database, MEDIA_CACHE } = await import('./storage.js');
+    const original = Cache.prototype.put; let count = 0;
+    Cache.prototype.put = async function(request, response) {
+      if (String(request).includes('__private_media__') && ++count === 2) throw new DOMException('Disk full', 'QuotaExceededError');
+      return original.call(this, request, response);
+    };
+    let rejected = false;
+    try {
+      await saveFigure({ id: crypto.randomUUID(), title: 'Rollback', description: '', status: 'Neu', tags: [] }, [1, 2].map(i => ({ id: crypto.randomUUID(), name: String(i), blob: new Blob(['fake']), confirmed: true, duration: 1, width: 10, height: 10 })));
+    } catch (error) { rejected = error.name === 'QuotaExceededError'; }
+    finally { Cache.prototype.put = original; }
+    const db = await database();
+    const videos = await new Promise(resolve => { const r = db.transaction('videos').objectStore('videos').count(); r.onsuccess = () => resolve(r.result); });
+    return { rejected, figures: (await listFigures()).length, videos, media: (await (await caches.open(MEDIA_CACHE)).keys()).length };
+  });
+  expect(result).toEqual({ rejected: true, figures: 0, videos: 0, media: 0 });
 });
