@@ -27,7 +27,7 @@ Auf dem iPhone kann die PWA nicht als Empfangsziel für „Teilen“ registriert
 
 ### PWA-Tests und Entwicklung
 
-Die App selbst hat keine Laufzeit-Abhängigkeiten und keinen Buildschritt. `npm test` führt Logiktests aus. Der CI-Workflow installiert Playwright, erzeugt zwei synthetische H.264-Videos mit FFmpeg und testet Chrome/Chromium mit MP4-Unterstützung in Mobilansicht sowie WebKit/iPhone-Ansicht. Browser-Tests umfassen Mehrfachimport, Vorschauen, Player-Einstellungen, A/B-Steuerung, Formatwechsel, Offline-Neustart und -Wiedergabe, Umbenennen/Reihenfolge, verworfenen Ersatz, Mindestvideozahl, Verwerfen, Löschen, ungültige Medien und Transaktionskonflikte. Screenshots und Fehlertraces liegen im Actions-Artefakt `pwa-browser-results`.
+Die App selbst hat keine Laufzeit-Abhängigkeiten und keinen Buildschritt. `npm test` führt Logiktests aus. Der CI-Workflow testet auf einem macOS-Runner mit nativer MP4-Unterstützung, installiert Playwright, erzeugt zwei synthetische H.264-Videos mit FFmpeg und testet Chrome/Chromium mit MP4-Unterstützung in Mobilansicht sowie WebKit/iPhone-Ansicht. Browser-Tests umfassen Mehrfachimport, Vorschauen, Player-Einstellungen, A/B-Steuerung, Formatwechsel, Offline-Neustart und -Wiedergabe, Umbenennen/Reihenfolge, verworfenen Ersatz, Mindestvideozahl, Verwerfen, Löschen, ungültige Medien und Transaktionskonflikte. Screenshots und Fehlertraces liegen im Actions-Artefakt `pwa-browser-results`.
 
 ```sh
 npm install

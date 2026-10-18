@@ -34,7 +34,7 @@ async function refresh() {
   catch (error) { $('empty').hidden = false; $('empty').replaceChildren(el('h2', '', 'Speicher nicht verfügbar'), el('p', '', storageMessage(error))); }
 }
 function renderOverview() {
-  closeMenus(); posterURLs.forEach(URL.revokeObjectURL); posterURLs = [];
+  closeMenus(); posterURLs.forEach(url => URL.revokeObjectURL(url)); posterURLs = [];
   const visible = filterFigures(figures, { query: $('search').value, status: statusFilter, tag: selectedTag, sort: $('sort').value });
   $('figureCount').textContent = `${visible.length} Figuren`;
   $('figureList').replaceChildren(); $('activeTag').replaceChildren();
@@ -181,7 +181,8 @@ $('acceptVideo').onclick = async () => {
   else { const index = editor.drafts.findIndex(d => d.id === active.draft.id); if (index >= 0) editor.drafts[index] = confirmed; }
   active.accepted = true; reviewNext = editor.reviewAll; renderDrafts(); history.back();
 };
-function cleanupPreview() { previewVideo.pause(); previewVideo.removeAttribute('src'); previewVideo.load(); if (previewURL) URL.revokeObjectURL(previewURL); previewURL = null; $('preview').close(); preview = null; }
+function releaseURL(url) { if (url) setTimeout(() => URL.revokeObjectURL(url), 1000); }
+function cleanupPreview() { previewVideo.pause(); previewVideo.removeAttribute('src'); previewVideo.load(); releaseURL(previewURL); previewURL = null; $('preview').close(); preview = null; }
 
 window.addEventListener('popstate', async event => {
   const target = event.state?.view ?? 'home';
@@ -222,7 +223,7 @@ async function openPlayer(figure) {
 function loadPlayerVideo(index, autoplay) {
   if (!learning?.records[index]) return;
   playIntent = autoplay; video.pause(); releaseWakeLock();
-  if (videoURL) { video.removeAttribute('src'); video.load(); URL.revokeObjectURL(videoURL); }
+  if (videoURL) { video.removeAttribute('src'); video.load(); releaseURL(videoURL); }
   learning.index = index; $('playerVideoChoice').value = String(index); loop.clear(); updateLoop(); setError('playerError', null); $('videoLoading').hidden = false;
   $('seek').value = '0'; $('position').textContent = '0:00'; $('duration').textContent = timeLabel(learning.records[index].duration);
   videoURL = URL.createObjectURL(learning.records[index].blob); video.src = videoURL; video.playbackRate = learning.speed; video.load();
@@ -275,7 +276,7 @@ $('playerVideoChoice').onchange = () => { if (learning) loadPlayerVideo(Number($
 $('fullscreen').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else if ($('playerScreen').requestFullscreen) await $('playerScreen').requestFullscreen(); else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); else toast('Diese Ansicht nutzt bereits die verfügbare Displayfläche.'); } catch { toast('Vollbild wird von diesem Browser nicht freigegeben.'); } };
 $('playerBack').onclick = () => history.back();
 function closePlayer() {
-  pause(); video.removeAttribute('src'); video.load(); if (videoURL) URL.revokeObjectURL(videoURL); videoURL = null; learning = null; loop.clear();
+  pause(); video.removeAttribute('src'); video.load(); releaseURL(videoURL); videoURL = null; learning = null; loop.clear();
   $('playerScreen').hidden = true; $('overview').hidden = false; $('overview').inert = false; document.body.classList.remove('playing-screen');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); if (video.webkitDisplayingFullscreen) video.webkitExitFullscreen();
 }

@@ -48,7 +48,8 @@ test('multi-video import, player settings, loops, rotation, reload and offline p
   await expect(page.locator('#fitCrop')).toHaveText('Crop'); await expect(page.locator('#fullLoop')).toHaveAttribute('aria-pressed', 'true');
   await page.screenshot({ path: info.outputPath('player-landscape.png') });
   await page.locator('#rewind').click(); await expect(page.locator('#learningVideo')).toHaveJSProperty('currentTime', 0);
-  await page.locator('#playerBack').click(); await page.reload();
+  await page.locator('#playerBack').click(); await expect(page.locator('#playerScreen')).not.toBeVisible();
+  await expect(page.locator('#learningVideo')).toHaveJSProperty('readyState', 0); await page.reload();
   await expect(page.getByRole('button', { name: 'Ocho lernen' })).toBeVisible();
   await context.setOffline(true); await page.reload();
   await expect(page.getByRole('button', { name: 'Ocho lernen' })).toBeVisible();
@@ -65,8 +66,8 @@ test('rename, reorder, preview replacement cancellation, discard and deletion', 
   await page.locator('#saveFigure').click(); await expect(page.locator('#editor')).not.toBeVisible();
   await page.getByRole('button', { name: 'Ocho lernen' }).click(); await expect(page.locator('#learningVideo')).toHaveJSProperty('videoWidth', 180); await page.locator('#playerBack').click();
   await openEdit(page);
-  await page.locator('.draft-card').first().getByRole('button', { name: 'Ersetzen', exact: true }).click({ noWaitAfter: true });
-  await page.locator('#videoFiles').setInputFiles(clip); await expect(page.locator('#preview')).toBeVisible();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.draft-card').first().getByRole('button', { name: 'Ersetzen', exact: true }).click()]);
+  await chooser.setFiles(clip); await expect(page.locator('#preview')).toBeVisible();
   await page.locator('#previewBack').click(); await expect(page.locator('#preview')).not.toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Name von Video 1', exact: true })).toHaveValue('Andere Perspektive');
   await page.locator('.draft-card').first().getByRole('button', { name: 'Entfernen', exact: true }).click();
