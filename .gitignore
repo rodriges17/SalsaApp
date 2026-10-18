@@ -10,3 +10,7 @@ ios/SalsaTrainer.xcodeproj/
 *.p12
 *.mobileprovision
 AuthKey_*.p8
+node_modules/
+playwright-report/
+test-results/
+web-tests/fixtures/

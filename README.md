@@ -1,4 +1,47 @@
-# Salsa Trainer für iPhone
+# Salsa Trainer – PWA und native iPhone-App
+
+## PWA auf iPhone oder Android
+
+Die Web-App liegt im Ordner `pwa/` und wird durch `.github/workflows/pwa.yml` nach bestandenen Tests auf **GitHub Pages** veröffentlicht.
+
+Geplante Adresse: **https://rodriges17.github.io/SalsaApp/**. Ob die Veröffentlichung bereits erfolgreich war, zeigt der Workflow „PWA tests and GitHub Pages“ unter Actions. Falls GitHub die erstmalige Pages-Aktivierung für den Workflow-Token verweigert: Repository → Settings → Pages → Build and deployment → Source → **GitHub Actions**, dann den Workflow erneut ausführen.
+
+Auf dem iPhone den Link in Safari öffnen → Teilen → **Zum Home-Bildschirm** → als Web-App öffnen. Erst die installierte App über ihr Symbol starten und dort die Videos importieren. Dafür ist weder ein Mac noch Apple-Signierung erforderlich.
+
+### PWA-Funktionen
+
+- Ursprüngliches dunkles Design, Suche über Name/Beschreibung/Tags, Lernstände, Tags und Sortierung.
+- Figuren erstellen, bearbeiten und löschen; mehrere lokale Videos mit Namen, Reihenfolge, Ersetzen und Entfernen. Das erste Video liefert Vorschaubild und Dauer.
+- Import über den Foto-/Dateiauswahldialog. Jedes neue Video muss vor dem Speichern in der abspielbaren Vorschau bestätigt werden. Abgebrochene Ersatzvideos ändern die bisherige Liste nicht.
+- Video-Blobs, Metadaten, Reihenfolge und Vorschaubilder werden zusammen in einer **IndexedDB-Transaktion** gespeichert. Quotenfehler und Konflikte mit anderen Tabs rollen die Transaktion zurück. Originaldateien werden nicht verändert.
+- Zurück-Buttons und Browser-Zurück mit Verwerfen-Dialog für ungespeicherte Änderungen. Während des Speicherns kann der Editor nicht verlassen werden.
+- Lernplayer mit Videowahl, 0,25×/0,5×/0,75×/1×, −5 Sekunden, Fit/Crop, Gesamtloop und A–B-Schleife. Videowechsel löscht A/B, behält die übrigen Einstellungen. Hintergrund und geschlossene Ansicht pausieren die Wiedergabe. Bildschirm-Wachhalten wird genutzt, sofern der Browser es anbietet.
+- Manueller Formatknopf dreht die **Player-Ansicht** im Hochformat um 90°. Die Systemausrichtung kann eine iPhone-PWA nicht zuverlässig sperren. Native Vollbildwiedergabe ist zusätzlich verfügbar, soweit der Browser sie unterstützt.
+- Service Worker speichert ausschließlich die App-Dateien. Nach „Offline bereit“ funktionieren Neustart und lokale Videowiedergabe ohne Netz. Keine Video-Uploads, Analytics, externen Fonts oder Server-Datenbank.
+
+### PWA-Grenzen
+
+Die gespeicherten Videos bleiben nur in diesem Browser-/App-Speicher auf diesem Gerät. Website-Daten löschen entfernt die Kopien. Der Browser kann Speicherquoten setzen und nicht dauerhaft geschützte Daten bei Platzmangel löschen. Unter „Installation & Speicher“ lässt sich dauerhafter Speicher anfragen; die Entscheidung trifft der Browser. Es gibt kein Backup und keine automatische Übernahme der Android-/Swift-Bibliothek.
+
+Auf dem iPhone kann die PWA nicht als Empfangsziel für „Teilen“ registriert werden; Videos werden innerhalb der App importiert. Abspielbare Codecs hängen vom Browser ab (H.264/MP4 ist am breitesten unterstützt). Bei erzwungenem Beenden oder Neuladen gehen ungespeicherte Entwürfe verloren; die bisher gespeicherten Figuren bleiben erhalten. Safari und eine Home-Screen-App können getrennte Speicherbereiche verwenden – daher vor dem Import installieren.
+
+### PWA-Tests und Entwicklung
+
+Die App selbst hat keine Laufzeit-Abhängigkeiten und keinen Buildschritt. `npm test` führt Logiktests aus. Der CI-Workflow installiert Playwright, erzeugt zwei synthetische H.264-Videos mit FFmpeg und testet Chromium/Mobilansicht sowie WebKit/iPhone-Ansicht. Browser-Tests umfassen Mehrfachimport, Vorschauen, Player-Einstellungen, A/B-Steuerung, Formatwechsel, Offline-Neustart und -Wiedergabe, Umbenennen/Reihenfolge, verworfenen Ersatz, Mindestvideozahl, Verwerfen, Löschen, ungültige Medien und Transaktionskonflikte. Screenshots und Fehlertraces liegen im Actions-Artefakt `pwa-browser-results`.
+
+```sh
+npm install
+npm test
+# Für den manuellen Browseraufruf auf dem eigenen Rechner:
+python3 -m http.server 4173
+# http://localhost:4173/pwa/
+```
+
+Bei Änderungen an den App-Dateien die Versionskennung in `pwa/sw.js` erhöhen, damit installierte PWAs den neuen App-Cache erhalten. Gespeicherte Nutzervideos gehören niemals in den Git- oder Pages-Ordner.
+
+---
+
+## Native Swift-App für iPhone
 
 Native, private Offline-App für eigene Salsa-Videos. SwiftUI / UIKit / AVFoundation, iPhone mit **iOS 17 oder neuer**. Kein Server, Login, Tracking oder Cloud-Backup. Videos und Metadaten bleiben im lokalen App-Group-Speicher; der Bibliotheksordner wird vom Gerätebackup ausgeschlossen. Deinstallation beider Komponenten löscht die Daten.
 
