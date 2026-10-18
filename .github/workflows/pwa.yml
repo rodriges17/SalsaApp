@@ -30,6 +30,8 @@ jobs:
           ffmpeg -f lavfi -i testsrc2=size=320x180:rate=12 -t 6 -c:v libx264 -pix_fmt yuv420p -movflags +faststart web-tests/fixtures/clip.mp4
           ffmpeg -f lavfi -i testsrc2=size=180x320:rate=12 -t 5 -c:v libx264 -pix_fmt yuv420p -movflags +faststart web-tests/fixtures/portrait.mp4
       - run: npm run test:browser
+        env:
+          DEBUG: pw:browser
       - name: Upload browser results
         if: always()
         uses: actions/upload-artifact@v4

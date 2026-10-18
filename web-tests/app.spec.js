@@ -127,3 +127,15 @@ test('failure during second media copy rolls back all newly staged files', async
   });
   expect(result).toEqual({ rejected: true, figures: 0, videos: 0, media: 0 });
 });
+
+
+test('offline shell and saved media survive a restart before playback', async ({ page, context }) => {
+  await start(page); await addFigure(page);
+  await page.reload(); await expect(page.getByRole('button', { name: 'Ocho lernen' })).toBeVisible();
+  await context.setOffline(true); await page.reload();
+  await expect(page.getByRole('button', { name: 'Ocho lernen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ocho lernen' }).click();
+  await expect(page.locator('#learningVideo')).toHaveJSProperty('videoWidth', 320);
+  await page.locator('#playPause').click();
+  await expect.poll(() => page.locator('#learningVideo').evaluate(v => v.currentTime)).toBeGreaterThan(0.1);
+});
