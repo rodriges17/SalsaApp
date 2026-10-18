@@ -21,7 +21,7 @@ enum TestFixtures {
             var buffer: CVPixelBuffer?
             guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer) == kCVReturnSuccess, let buffer else { throw SalsaError.message("Testbuffer fehlgeschlagen.") }
             CVPixelBufferLockBaseAddress(buffer, [])
-            if let address = CVPixelBufferGetBaseAddress(buffer) { memset(address, 90 + frame, CVPixelBufferGetDataSize(buffer)) }
+            if let address = CVPixelBufferGetBaseAddress(buffer) { memset(address, Int32(90 + frame), CVPixelBufferGetDataSize(buffer)) }
             CVPixelBufferUnlockBaseAddress(buffer, [])
             guard adaptor.append(buffer, withPresentationTime: CMTime(value: Int64(frame), timescale: 12)) else { throw SalsaError.message("Testframe fehlgeschlagen.") }
         }

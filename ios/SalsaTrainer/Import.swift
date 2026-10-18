@@ -10,6 +10,7 @@ enum MovieImport {
         guard provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) else {
             throw SalsaError.message("Bitte ausschließlich Videos auswählen.")
         }
+        let suggestedName = provider.suggestedName
         return try await withCheckedThrowingContinuation { continuation in
             provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, error in
                 do {
@@ -18,7 +19,7 @@ enum MovieImport {
                     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                     let target = directory.appendingPathComponent(UUID().uuidString).appendingPathExtension(url.pathExtension)
                     try FileManager.default.copyItem(at: url, to: target)
-                    let name = provider.suggestedName ?? url.deletingPathExtension().lastPathComponent
+                    let name = suggestedName ?? url.deletingPathExtension().lastPathComponent
                     continuation.resume(returning: VideoDraft(source: target, title: (name as NSString).deletingPathExtension))
                 } catch { continuation.resume(throwing: error) }
             }
