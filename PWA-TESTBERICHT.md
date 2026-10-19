@@ -1,53 +1,47 @@
 # PWA – Build- und Testbericht
 
-Geprüfter Quellcode: `d8439b5740df038fec7ebaecbbebf5e83e120d9c`.
+Geprüfter Quellcode: `d63c543ffce44a81721c654eb6ab3b4401e355aa`.
+Stand: 19.10.2026.
 
-[Testlauf und Veröffentlichungsstatus](https://github.com/rodriges17/SalsaApp/actions/runs/39165957892)
+[Testlauf und Veröffentlichung](https://github.com/rodriges17/SalsaAppIOS/actions/runs/39179746381)
 
 ## Ergebnis
 
-**4 Logiktests und 10 Browser-Tests erfolgreich, 0 Fehler.** Browser-Tests liefen auf einem GitHub-macOS-Runner mit Playwright 1.64.1, Chrome/Android-Ansicht und WebKit/iPhone-Ansicht. Die fünf Szenarien wurden in beiden Browsern ausgeführt:
+**12 Logiktests und 16 Browser-Tests erfolgreich, 0 Fehler.** GitHub Pages wurde erfolgreich veröffentlicht. Die Live-Adresse liefert den Service Worker `2026-10-19-sharing-v1` einschließlich des neuen Paketmoduls.
+
+**App:** https://rodriges17.github.io/SalsaAppIOS/
+
+Browser-Tests liefen auf einem GitHub-macOS-Runner mit Playwright 1.64.1, Chrome in Android-Ansicht und WebKit in iPhone-Ansicht. Acht Szenarien wurden in beiden Browsern ausgeführt:
 
 1. Mehrfachimport mit bestätigten Vorschauen; Player, Geschwindigkeit, Fit/Crop, Schleifen, Videowechsel, manueller Ansichtswechsel, Neustart und Offline-Wiedergabe.
 2. Umbenennen und Reihenfolge, abgebrochener Ersatz, Mindestvideozahl, Weiterbearbeiten/Verwerfen und Löschen aller lokalen Kopien.
 3. Ungültige Medien dürfen nicht gespeichert werden; ein veralteter Entwurf überschreibt keine parallelen Änderungen und hinterlässt keine neuen Videokopien.
 4. Simulierter Quotenfehler beim zweiten Video: keine neue Figur, keine Video-Datensätze und keine übrig gebliebenen Mediendateien.
 5. Offline-Neustart und lokale Wiedergabe unabhängig von vorheriger Player-Nutzung.
+6. ZIP-Download und Offline-Import: bestätigte Vorschauen, Originalbytes und Metadaten bleiben erhalten, Lernstand wird Neu, Wiederholungsimport mit Abbruch oder ausdrücklicher weiterer Kopie.
+7. Export einer Video-Teilmenge, Verwerfen des Imports und fehlerhafte ZIP-Datei lassen die vorhandene Bibliothek unverändert.
+8. Vorbereitete ZIP-Datei wird an die simulierte System-Teilen-API übergeben; bei deren Fehler bleibt der Download verfügbar.
 
-Screenshots von Übersicht und gedrehter Player-Ansicht wurden visuell geprüft. Die Testvideos sind synthetische H.264-Clips in Hoch- und Querformat. Nutzervideos werden nicht hochgeladen und sind nicht im Repository enthalten.
+Die acht neuen Paket-Logiktests prüfen Originalbytes/Metadaten, Ausschluss von Lernstand/IDs, Auswahl, Wiederholungserkennung, 250-MiB-Grenze, beschädigte ZIPs, Pfadmanipulation, doppelte Einträge, komprimierte Einträge, unbekannte Version, ungültige Metadaten, Abbruch, CRC32-Referenzwert und Dateinamen. Zusätzlich bestanden die vier bisherigen Logiktests sowie Syntaxprüfung und `git diff --check`.
 
-[Browser-Ergebnisse und Screenshots](https://github.com/rodriges17/SalsaApp/actions/runs/39165957892/artifacts/12150597453)
+Browser-Bericht, Traces und Screenshots liegen als `pwa-browser-results` im verlinkten Workflow. Die Testvideos sind synthetische H.264-Clips in Hoch- und Querformat. Nutzervideos sind nicht im Repository enthalten.
 
-## Veröffentlichung: ein Repository-Schritt fehlt
+## Teilen und Importieren
 
-Das Pages-Paket wurde erfolgreich erzeugt. Die erstmalige Aktivierung wurde von GitHub abgelehnt:
+**⋮ → Figur teilen → Videos auswählen → ZIP vorbereiten → ZIP teilen** oder **ZIP speichern**. Gespeicherte ZIP-Dateien in WhatsApp als Dokument anhängen. Empfänger speichern den Anhang in Dateien und wählen in der PWA **Figur importieren**. Jede neue Videodatei braucht eine bestätigte Vorschau; erst Figur speichern erstellt die neue lokale Kopie.
 
-> Create Pages site failed: Resource not accessible by integration
+Das Paket enthält ausgewählte Originalvideos, Name, Beschreibung, Tags, Videonamen und Reihenfolge. Kein persönlicher Lernstand. Maximal 250 MiB (UI: 250 MB), 100 Videos. Details zum versionierten Austauschformat stehen in README.md. Native Android- und iOS-App unterstützen dieses Format noch nicht.
 
-Der Workflow hat Pages-Schreibrechte, aber keine Berechtigung zur initialen Administration. Die GitHub-Anbindung bietet diesen Einstellungsbefehl nicht an; der zusätzliche Browserzugriff ist mit einer Zeitüberschreitung abgebrochen. Es ist noch keine live erreichbare PWA bestätigt.
+## Installation und Aktualisierung
 
-Im [Repository](https://github.com/rodriges17/SalsaApp) **Settings → Pages → Build and deployment → Source → GitHub Actions** wählen. Danach im oben verlinkten Workflow-Lauf **Re-run jobs → Re-run failed jobs** ausführen. Solange das Pages-Artefakt vorhanden ist, wird nur der fehlgeschlagene Veröffentlichungsschritt wiederholt; die bereits erfolgreichen Tests müssen dafür nicht neu laufen. Das Pages-Artefakt dieses Laufs läuft am 19.10.2026 um 21:03 UTC ab. Danach den kompletten Workflow über „Run workflow“ neu starten.
+In Safari öffnen → Teilen → **Zum Home-Bildschirm**. Die installierte App über ihr Symbol starten und dort Videos importieren. Vor Offline-Nutzung auf **Offline bereit** warten.
 
-Nach erfolgreicher Veröffentlichung lautet die erwartete Adresse:
-
-https://rodriges17.github.io/SalsaApp/
-
-## Installation auf dem iPhone
-
-Die veröffentlichte Adresse in Safari öffnen → Teilen → **Zum Home-Bildschirm** → als Web-App öffnen. Die installierte App über ihr Symbol starten und dort Videos importieren. Vor Offline-Nutzung auf **„Offline bereit“** warten.
+Bei einer bereits installierten PWA die App online öffnen, schließen und erneut öffnen, damit der neue Service Worker die aktualisierte Oberfläche ausliefert. Website-Daten nicht löschen: Darin liegen die lokalen Videos.
 
 ## Grenzen
 
-Kein Test auf einem physischen iPhone oder Android-Gerät. Die echte Home-Screen-Installation, große Originalvideos, Speicherquoten und Stromsparverhalten sind zusätzlich auf dem Gerät zu prüfen. Der Formatknopf dreht die Ansicht; eine systemweite Ausrichtungssperre ist im iPhone-Browser nicht zuverlässig verfügbar. Empfang aus dem iPhone-Teilen-Menü ist nicht möglich; Import erfolgt innerhalb der App.
+Keine Tests auf physischen iPhones oder Android-Geräten und keine echte WhatsApp-Übertragung. Das System-Teilen wurde im Browser simuliert, Download/Import dagegen vollständig ausgeführt. Die Home-Screen-Installation, große Originalvideos, Speicherquoten, tatsächliche Teilen-Ziele und Stromsparverhalten sind zusätzlich auf Geräten zu prüfen.
 
-Videos liegen separat in Cache Storage, Metadaten und Verweise in IndexedDB. Neue Medien werden vor dem Metadaten-Commit bereitgestellt und bei Fehlern entfernt; bestehende Medien erst nach erfolgreichem Commit gelöscht. Der Service Worker aktualisiert ausschließlich den getrennten App-Cache. Website-Daten löschen entfernt die lokalen Kopien. Eine Speicher-Persistenzanfrage ist möglich, ihre Bewilligung liegt beim Browser. Originaldateien bleiben unverändert; es gibt kein Backup.
+Videos liegen separat in Cache Storage, Metadaten und Verweise in IndexedDB. Neue Medien werden vor dem Metadaten-Commit bereitgestellt und bei Fehlern entfernt; bestehende Medien erst nach erfolgreichem Commit gelöscht. Der Service Worker aktualisiert ausschließlich den getrennten App-Cache. Website-Daten löschen entfernt die lokalen Kopien. Eine Speicher-Persistenzanfrage ist möglich, ihre Bewilligung liegt beim Browser.
 
-## ZIP-Austausch – lokale Ergänzung vom 19.10.2026
-
-- 12 Node-Tests erfolgreich (4 bisherige Logiktests, 8 neue Pakettests).
-- Neue Pakettests: Originalbytes/Metadaten, Ausschluss von Lernstand/IDs, Videoauswahl, Wiederholungserkennung, 250-MiB-Grenze, beschädigte ZIPs, Pfadmanipulation, doppelte Einträge, komprimierte Einträge, unbekannte Version, ungültige Metadaten, Abbruch und CRC32-Referenzwert.
-- Drei zusätzliche Browser-Szenarien vorbereitet, jeweils für Chrome und WebKit: Offline-Export/Import mit Vorschau und Wiederholung; Teilmenge/Verwerfen/fehlerhafte Datei; System-Teilen mit Download-Fallback.
-- JavaScript-Syntaxprüfung und `git diff --check` erfolgreich.
-- **Neue Browser-Szenarien noch nicht ausgeführt:** Kein lokaler Testbrowser; der Download lieferte kein gültiges Browserarchiv. Frühere Browser-Ergebnisse oben betreffen den bisherigen Stand, nicht diese Erweiterung.
-- GitHub-Upload von der automatischen Freigabeprüfung abgelehnt; Veröffentlichung und GitHub-CI sind bis zur ausdrücklich bestätigten Upload-Freigabe ausstehend.
-- Keine echten iPhone-/Android-Gerätetests oder WhatsApp-Übertragung durchgeführt.
+ZIP-Pakete sind manuelle Kopien einzelner Figuren mit ausgewählten Videos, kein automatisches vollständiges Backup. Der Wiederholungsfingerabdruck ist keine Authentizitätsprüfung. Die App stellt auf iPhones kein Ziel für empfangene Dateien im System-Teilen-Menü bereit; Import erfolgt innerhalb der PWA.
