@@ -1,0 +1,47 @@
+# Cloud-Bibliotheken – Prüfstand
+
+Projekt: `tzaprobvauikssnpiucl`, Supabase Free. Cloud-Oberfläche im Pull Request [#1](https://github.com/rodriges17/SalsaAppIOS/pull/1), noch nicht auf GitHub Pages veröffentlicht.
+
+## Echte Supabase-Prüfung
+
+Mit einem künstlich erzeugten H.264-Video und einem temporären Testkonto wurden erfolgreich geprüft:
+
+- Manuelle Linkerzeugung ohne E-Mail-Versand und Einlösen des Einmal-Links.
+- Administratorzugriff; anonyme Aufrufe erhalten keine Administratorrechte.
+- Ein nicht freigeschaltetes Konto darf keine Videos reservieren und nicht als Mitwirkender zugewiesen werden.
+- Private Bibliotheken sind ohne Mitgliedschaft/Anmeldung nicht abrufbar.
+- Nach Freischaltung: Upload-Reservierung, tatsächlicher Upload in privaten Storage, Verifikation der Dateigröße und Commit einer Version.
+- Beitrag zur moderierten Bibliothek und Freigabe durch den Bibliotheksbesitzer.
+- Öffentliche Zuordnung wird ohne Figurenbesitzer-Zustimmung abgewiesen.
+- Nach Zustimmung: signierter Download ohne Anmeldung. SHA-256 der geladenen Videobytes stimmt mit dem Original-Testvideo überein.
+- Widerruf der Zustimmung verbirgt die Figur wieder für öffentliche Lesende.
+- Gesperrte Upload-Freigabe verhindert weitere Reservierungen.
+- Alle Testbibliotheken, Versionen, Videos und das temporäre Konto wurden entfernt. Verifiziert: 0 Cloud-Mediendatensätze, 0 Storage-Objekte, 0 Bibliotheken, 1 Person (Administrator).
+
+Der einmalige Bootstrap-Schlüssel wurde nach Anlage des Administrators aus der Serverfunktion entfernt. Keine E-Mail oder WhatsApp-Nachricht wurde automatisch verschickt. Es wurden keine Nutzervideos verwendet.
+
+## Lokale Datenbank- und Logiktests
+
+20 Tests erfolgreich: 8 neue Datenbanktests mit PostgreSQL/PGlite und nachgebildetem Supabase-Auth-/Storage-Schema sowie 12 bisherige Logik-/Pakettests. Abgedeckt sind Rechte, öffentliche/private Bibliotheken, Freigabe von Personen, Worst-Case-Reservierungen, Quotenüberschreitung, unvollständige Uploads, Moderation, öffentliche Zustimmung, gemeinsame Figuren, versionierte Updates, Sperren und Quotenfreigabe erst nach Dateilöschung.
+
+Die öffentliche SQL-Schnittstelle sperrt Reservierung/Commit und administrative Quota-Änderungen vor dem Lesen der veränderlichen Berechtigungen über dieselbe transaktionale Sperre. Diese zusätzliche Migration ist im Projekt eingespielt. Ein Lasttest mit vielen parallelen echten Geräten wurde nicht durchgeführt.
+
+Deno-Typprüfung der Edge Function erfolgreich. Supabase SDK auf 2.118.0 festgelegt, npm-Lockfile im Repository.
+
+## Browser-Prüfung
+
+Die Cloud-Oberflächentests simulieren die API ausdrücklich. Sie ersetzen die oben getrennt dokumentierte echte Supabase-Prüfung nicht. Bestehende Player-, Mehrvideo-, ZIP-, Touch-, Offline- und Cache-Upgrade-Tests laufen weiterhin in Chrome/Android-Ansicht und WebKit/iPhone-Ansicht.
+
+Aktueller Lauf und Ergebnis werden nach Abschluss ergänzt. Die erste Runde hatte drei WebKit-Fehler durch die CORS-Antworten der simulierten API; daraus wird kein Erfolg abgeleitet.
+
+## Sicherheitsprüfung
+
+Supabase Advisors meldeten keine ERROR-/WARN-Sicherheitsbefunde. Der INFO-Hinweis [RLS ohne Policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) ist hier absichtlich: Browserrollen besitzen keine Tabellenrechte, RLS verweigert standardmäßig jede Zeile. Zugriff erfolgt über geprüfte API-Aktionen; privilegierte Implementierungen liegen im nicht exponierten Schema `cloud_private`, öffentliche Wrapper sind Security Invoker. Storage erlaubt nur neue reservierte Pfade; keine Browser-Policies für Lesen, Ersetzen oder Löschen.
+
+Performance-INFO zu [nicht indexierten Fremdschlüsseln](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys) und erwartbar unbenutzten neuen Indizes bleibt für den kleinen Testbestand dokumentiert; keine Performance-Probleme oder Warnungen festgestellt.
+
+## Praktische Grenzen
+
+900 MB Gesamtspeicher, 50 MB pro Cloud-Video. Ausstehende Reservierungen und alte Versionen zählen mit. Supabase-Abruf-/Egress-Freigrenzen werden nicht automatisch durch die Speicherquote begrenzt. Signierte Video-Links bleiben bis zu fünf Minuten gültig, bereits lokal kopierte Inhalte lassen sich nicht zurückholen.
+
+Kein physisches iPhone/Android-Gerät und kein echter WhatsApp-Versand hier geprüft. Die Cloud-PWA-Veröffentlichung braucht noch die Freigabe für `main`; die automatische Freigabeprüfung lehnte diesen Schritt ab. Datenbank und Serverfunktion sind bereits eingerichtet.
