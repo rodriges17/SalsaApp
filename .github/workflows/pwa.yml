@@ -2,9 +2,9 @@ name: PWA tests and GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['pwa/**', 'web-tests/**', 'package.json', 'package-lock.json', 'playwright.config.js', '.github/workflows/pwa.yml']
+    paths: ['pwa/**', 'web-tests/**', 'supabase/**', 'package.json', 'package-lock.json', 'playwright.config.js', '.github/workflows/pwa.yml']
   pull_request:
-    paths: ['pwa/**', 'web-tests/**', 'package.json', 'package-lock.json', 'playwright.config.js', '.github/workflows/pwa.yml']
+    paths: ['pwa/**', 'web-tests/**', 'supabase/**', 'package.json', 'package-lock.json', 'playwright.config.js', '.github/workflows/pwa.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,10 @@ jobs:
           node-version: '22'
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm test
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check --node-modules-dir=manual supabase/functions/cloud/index.ts
       - run: npx playwright install chromium webkit
       - name: Create local synthetic test videos
         run: |

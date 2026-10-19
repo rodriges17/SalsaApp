@@ -1,4 +1,5 @@
-const APP_VERSION = '2026-10-19-sharing-v3';
+const APP_VERSION = '2026-10-19-cloud-v1';
+import { initCloud, openCloud } from './cloud.js';
 import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
 import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports } from './storage.js';
@@ -56,7 +57,7 @@ function renderOverview() {
     options.setAttribute('aria-label', `Optionen für ${figure.title}`); options.setAttribute('aria-expanded', 'false');
     function showMenu() {
       options.setAttribute('aria-expanded', 'true'); const menu = el('div', 'card-menu');
-      menu.append(button('Figur teilen', () => { closeMenus(); openShare(figure); }), button('Bearbeiten', () => { closeMenus(); openEditor(figure); }), button('Löschen', async () => {
+      menu.append(button('In Cloud veröffentlichen', () => { closeMenus(); openCloud(figure); }), button('Figur teilen', () => { closeMenus(); openShare(figure); }), button('Bearbeiten', () => { closeMenus(); openEditor(figure); }), button('Löschen', async () => {
         closeMenus(); const accepted = await confirmAction({ title: `„${figure.title}“ löschen?`, message: 'Die Figur und alle zugehörigen lokalen Videokopien werden entfernt. Die Originaldateien bleiben erhalten.', ok: 'Löschen' });
         if (accepted) { try { await deleteFigure(figure); changed(); await refresh(); toast('Figur gelöscht.'); } catch (error) { toast(storageMessage(error)); await refresh(); } }
       }, 'danger')); card.append(menu);
@@ -434,5 +435,10 @@ $('applyUpdate').onclick = () => {
   }
   location.reload();
 };
+initCloud({ confirm: confirmAction, imported: async imported => {
+  const current = await listFigures();
+  if (current.some(f => f.importFingerprint === imported.fingerprint) && !await confirmAction({ title: 'Cloud-Version bereits übernommen', message: 'Trotzdem eine weitere lokale Kopie erstellen?', ok: 'Weitere Kopie erstellen' })) return;
+  await openEditor(null, imported);
+} });
 try { await cleanupInterruptedImports(); } catch { /* Refresh reports unavailable storage. */ }
 await refresh();
