@@ -1,3 +1,9 @@
+# Salsa Trainer Cloud
+
+Eigenständige Cloud-Variante der Salsa-PWA. Zieladresse: https://rodriges17.github.io/SalsaAppCloud/
+
+Die Offline-App unter https://rodriges17.github.io/SalsaAppIOS/ bleibt separat bestehen. Lokale Figuren können per ZIP kopiert werden.
+
 # Salsa Trainer – PWA und native iPhone-App
 
 ## PWA auf iPhone oder Android

@@ -4,7 +4,7 @@ import path from 'node:path';
 const clip = path.resolve('web-tests/fixtures/clip.mp4');
 const portrait = path.resolve('web-tests/fixtures/portrait.mp4');
 async function start(page) {
-  await page.goto('/pwa/'); await expect(page.getByRole('heading', { name: 'Salsa Figuren' })).toBeVisible();
+  await page.goto('/pwa/'); await expect(page.getByRole('heading', { name: 'Salsa Cloud' })).toBeVisible();
   await expect(page.locator('#offlineStatus')).toContainText('Offline bereit');
   await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
 }

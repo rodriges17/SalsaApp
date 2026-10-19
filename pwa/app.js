@@ -10,7 +10,7 @@ const button = (text, action, className = '') => { const node = el('button', cla
 let figures = [], statusFilter = '', selectedTag = '', editor = null, preview = null, learning = null;
 let route = 'home', opening = false, toastTimer, reviewNext = false;
 let posterURLs = [], videoURL = null, previewURL = null;
-const channel = 'BroadcastChannel' in window ? new BroadcastChannel('salsa-trainer-library') : null;
+const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`salsa-trainer-library:${new URL('./', import.meta.url).pathname}`) : null;
 const loop = new ABLoop();
 let playIntent = false, wakeLock = null;
 const video = $('learningVideo');
@@ -407,38 +407,46 @@ $('packageFile').onchange = async () => {
       const accepted = await confirmAction({ title: 'Figur bereits importiert', message: 'Dieses Paket wurde bereits importiert. Trotzdem eine weitere eigene Kopie anlegen?', ok: 'Weitere Kopie anlegen' });
       if (!accepted || packageImport !== controller) return;
     }
-    if (packageImport !== controller) return;
-    await openEditor(null, imported);
-  } catch (error) {
-    if (packageImport === controller && error.name !== 'AbortError') {
-      $('importProgressDialog').close();
-      await confirmAction({ title: 'Import nicht möglich', message: storageMessage(error), ok: 'Verstanden', cancel: 'Schließen' });
-    }
-  } finally {
-    if (packageImport === controller) { packageImport = null; $('importProgressDialog').close(); $('packageFile').value = ''; }
-  }
-};
-
-// Register interaction handlers before storage recovery, which may wait for another tab.
-$('appVersion').textContent = `Version ${APP_VERSION}`;
-document.documentElement.dataset.appVersion = APP_VERSION;
-if ('serviceWorker' in navigator) {
-  let controlled = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (controlled) $('updateNotice').hidden = false;
-    controlled = true;
-  });
-}
-$('applyUpdate').onclick = () => {
-  if (editor || preview || learning || sharing || packageImport || $('importChoiceDialog').open) {
-    toast('Bitte zuerst den aktuellen Vorgang beenden und zur Übersicht zurückkehren.'); return;
-  }
-  location.reload();
-};
-initCloud({ confirm: confirmAction, imported: async imported => {
-  const current = await listFigures();
-  if (current.some(f => f.importFingerprint === imported.fingerprint) && !await confirmAction({ title: 'Cloud-Version bereits übernommen', message: 'Trotzdem eine weitere lokale Kopie erstellen?', ok: 'Weitere Kopie erstellen' })) return;
-  await openEditor(null, imported);
-} });
-try { await cleanupInterruptedImports(); } catch { /* Refresh reports unavailable storage. */ }
-await refresh();
+    if (packageImport !== controller) retur…2948 tokens truncated…<div class="preview-body"><h3 id="previewTitle"></h3><video id="previewVideo" controls playsinline preload="auto"></video><p id="previewError" class="error" role="alert" hidden></p><p class="small muted">Spiele das Video zur Kontrolle ab. Erst nach Bestätigung und Speichern wird es dauerhaft übernommen.</p><button id="acceptVideo" class="primary" disabled>Video übernehmen</button></div>
+  </dialog>
+  <section id="playerScreen" class="player-screen" aria-label="Lernplayer" hidden>
+    <header class="screen-header"><button id="playerBack" class="back" aria-label="Zurück zur Übersicht">‹</button><h2 id="playerTitle"></h2><button id="rotatePlayer" class="icon-button" aria-label="Hochformat / Querformat" aria-pressed="false">↻</button></header>
+    <div class="video-choice"><label for="playerVideoChoice" class="sr-only">Video auswählen</label><select id="playerVideoChoice"></select></div>
+    <div id="videoStage" class="video-stage"><video id="learningVideo" playsinline preload="auto"></video><div id="videoLoading" class="loading" hidden>Video wird geladen …</div></div>
+    <p id="playerError" class="error" role="alert" hidden></p>
+    <div class="timeline"><label for="seek" class="sr-only">Videoposition</label><input id="seek" type="range" min="0" max="1" step="0.01" value="0"><div class="time-labels"><span id="position">0:00</span><span id="duration">0:00</span></div></div>
+    <div class="player-controls"><button id="rewind" aria-label="5 Sekunden zurück">−5 s</button><button id="playPause" aria-label="Abspielen">▶</button><label class="sr-only" for="speed">Geschwindigkeit</label><select id="speed" aria-label="Geschwindigkeit"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="0.75">0,75×</option><option value="1" selected>1×</option></select><button id="fitCrop" aria-pressed="false">Fit</button><button id="fullLoop" aria-pressed="false">Loop</button><button id="markA">A</button><button id="markB" disabled>B</button><button id="clearAB" disabled>A–B löschen</button><button id="fullscreen">Vollbild</button></div>
+    <p id="abStatus" class="ab-status" aria-live="polite"></p><div id="playerDescription" class="player-description"></div>
+  </section>
+  <dialog id="cloudDialog" class="screen-dialog">
+    <header class="screen-header"><button id="cloudBack" class="back" aria-label="Zurück aus der Cloud">‹</button><h2>Cloud-Bibliotheken</h2></header>
+    <div class="cloud-scroll"><p id="cloudError" class="error" role="alert" hidden></p><div id="cloudBody"></div></div>
+    <footer class="save-footer"><p id="cloudStatus" role="status"></p><button id="cloudCancelUpload" class="secondary" hidden>Upload abbrechen</button></footer>
+  </dialog>
+  <dialog id="importChoiceDialog" class="small-dialog">
+    <h2>Figur importieren</h2>
+    <p>Wähle eine ZIP-Datei, die mit „Figur teilen“ erstellt wurde. Einen WhatsApp-Anhang zuerst in „Dateien“ oder „Downloads“ speichern.</p>
+    <label for="packageFile">Figuren-Paket (.zip) auswählen</label>
+    <input id="packageFile" type="file" aria-describedby="packageHelp">
+    <p id="packageHelp" class="small muted">Für einzelne Videos nutze „Figur hinzufügen“. Das ZIP wird hier geprüft; vorhandene Figuren bleiben erhalten.</p>
+    <button id="closeImportChoice" class="secondary">Abbrechen</button>
+  </dialog>
+  <dialog id="shareDialog" class="small-dialog">
+    <h2 id="shareTitle">Figur teilen</h2>
+    <p>Wähle die Videos. Name, Beschreibung, Tags und Videonamen werden mitgeschickt. Dein Lernstand bleibt bei dir.</p>
+    <fieldset id="shareVideos" aria-label="Videos zum Teilen"></fieldset>
+    <p id="shareSize" role="status"></p><p id="shareProgress" role="status" hidden>ZIP wird vorbereitet …</p>
+    <p id="shareError" class="error" role="alert" hidden></p>
+    <button id="preparePackage" class="primary">ZIP vorbereiten</button>
+    <button id="sendPackage" class="primary" hidden>ZIP teilen</button>
+    <a id="downloadPackage" class="secondary download-package" hidden>ZIP speichern</a>
+    <p class="small muted">Originalqualität, maximal 250 MB. ZIP in WhatsApp als Dokument senden. Empfänger: Anhang in Dateien speichern → App öffnen → Figur importieren.</p>
+    <button id="closeShare" class="secondary">Schließen</button>
+  </dialog>
+  <dialog id="importProgressDialog" class="small-dialog"><h2>Figur importieren</h2><p role="status">ZIP und Videos werden geprüft …</p><button id="cancelImport" class="secondary">Abbrechen</button></dialog>
+  <dialog id="confirmDialog" class="small-dialog"><h2 id="confirmTitle"></h2><p id="confirmMessage"></p><div class="dialog-actions"><button id="confirmCancel" class="secondary">Abbrechen</button><button id="confirmOK" class="primary">Bestätigen</button></div></dialog>
+  <dialog id="tagsDialog" class="small-dialog"><h2>Tags</h2><div id="tagOptions" class="tag-options"></div><button id="closeTags" class="secondary">Schließen</button></dialog>
+  <dialog id="infoDialog" class="small-dialog info-dialog"><h2>Dein Salsa Trainer Cloud</h2><p id="appVersion" class="small muted"></p><p>Deine lokalen Videos bleiben auf diesem Gerät. Nur wenn du eine Figur ausdrücklich in einer Cloud-Bibliothek veröffentlichst, werden die ausgewählten Videos und Angaben hochgeladen.</p><h3>Auf dem iPhone installieren</h3><p>In Safari öffnen → Teilen → <strong>Zum Home-Bildschirm</strong> → als Web-App öffnen. Danach zuerst die App über ihr neues Symbol starten und dort die Videos importieren.</p><h3>Offline lernen</h3><p id="offlineDetails">Die App wird nach dem ersten Online-Aufruf für die Offline-Nutzung vorbereitet.</p><h3>Lokaler Speicher</h3><p id="storageDetails"></p><p>Beim Löschen der Website-Daten gehen die gespeicherten Kopien verloren. Bei Speichermangel kann der Browser nicht dauerhaft geschützte Daten entfernen. Deine Originalvideos bleiben erhalten.</p><button id="persistStorage" class="secondary">Dauerhaften Speicher anfragen</button><p id="persistenceResult" role="status"></p><p class="small muted">Videos über „Videos hinzufügen“ importieren. Die PWA kann auf dem iPhone nicht als Ziel im Teilen-Menü registriert werden. Der Formatknopf dreht die Player-Ansicht; die Systemsperre für die Geräteausrichtung kann Safari nicht überall steuern.</p><button id="closeInfo" class="primary">Schließen</button></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <noscript>Für die lokale Videobibliothek muss JavaScript aktiviert sein.</noscript>
+</body></html>

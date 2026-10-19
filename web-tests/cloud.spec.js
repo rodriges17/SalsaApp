@@ -23,7 +23,7 @@ async function mock(page,admin=false){
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result),headers:{'Access-Control-Allow-Origin':'*'}});
  });return calls;
 }
-async function start(page){await page.goto('/pwa/');await expect(page.getByRole('heading',{name:'Salsa Figuren',exact:true})).toBeVisible();}
+async function start(page){await page.goto('/pwa/');await expect(page.getByRole('heading',{name:'Salsa Cloud',exact:true})).toBeVisible();}
 test('public cloud download requires confirmed previews and becomes an offline copy',async({page,context})=>{
  await mock(page);await start(page);await page.locator('#cloudButton').tap();await page.getByRole('button',{name:'Öffnen',exact:true}).tap();
  await expect(page.getByRole('heading',{name:'Cloud Kurs',exact:true})).toBeVisible();await page.getByRole('button',{name:'In meine Figuren übernehmen',exact:true}).tap();
@@ -35,7 +35,7 @@ test('offline cloud failure stays closable and local editing works',async({page,
  await start(page);await context.setOffline(true);await page.locator('#cloudButton').tap();await expect(page.locator('#cloudError')).toContainText('Internetverbindung');await page.locator('#cloudBack').tap();await page.locator('#addFigure').tap();await expect(page.locator('#editor')).toBeVisible();
 });
 test('admin sets explicit quota and creates a manual link without sending a message',async({page})=>{
- await page.addInitScript(()=>localStorage.setItem('salsa-cloud-session-v1',JSON.stringify({access_token:'test-user-jwt',refresh_token:'test-refresh',expires_at:Date.now()+3600000})));
+ await page.addInitScript(()=>localStorage.setItem('salsa-cloud-session:/pwa/:v1',JSON.stringify({access_token:'test-user-jwt',refresh_token:'test-refresh',expires_at:Date.now()+3600000})));
  const calls=await mock(page,true);await start(page);await page.locator('#cloudButton').tap();
  await page.getByLabel('Person: E-Mail-Adresse',{exact:true}).fill('writer@example.test');await page.getByLabel('Speicherlimit dieser Person in MB',{exact:true}).fill('100');await page.getByLabel('Cloud-Bibliotheken und Uploads erlauben',{exact:true}).check();
  await page.getByRole('button',{name:'Person anlegen / Freigabe speichern',exact:true}).tap();await expect.poll(()=>calls.some(c=>c.action==='admin_user')).toBe(true);
@@ -55,5 +55,5 @@ test('manual sign-in link is redeemed inside the current app without navigating 
  await page.getByRole('button',{name:'Anmelden',exact:true}).tap();
  await expect(page.locator('#cloudBody')).toContainText('admin@example.test');
  expect(page.url()).not.toContain('token_hash');
- expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('salsa-cloud-session-v1')).access_token)).toBe('test-new-user-jwt');
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('salsa-cloud-session:/pwa/:v1')).access_token)).toBe('test-new-user-jwt');
 });

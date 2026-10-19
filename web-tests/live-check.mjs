@@ -1,7 +1,7 @@
 import { chromium, webkit, devices } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-const url = 'https://rodriges17.github.io/SalsaAppIOS/';
+const url = 'https://rodriges17.github.io/SalsaAppCloud/';
 await mkdir('test-results/live', { recursive: true });
 for (const [name, engine, options] of [
   ['chrome', chromium, { ...devices['Pixel 7'] }],
