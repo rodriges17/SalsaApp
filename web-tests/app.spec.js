@@ -139,3 +139,70 @@ test('offline shell and saved media survive a restart before playback', async ({
   await page.locator('#playPause').click();
   await expect.poll(() => page.locator('#learningVideo').evaluate(v => v.currentTime)).toBeGreaterThan(0.1);
 });
+
+async function exportPackage(page, info, subset = false) {
+  await page.getByRole('button', { name: 'Optionen für Ocho', exact: true }).click();
+  await page.getByRole('button', { name: 'Figur teilen', exact: true }).click();
+  await expect(page.locator('#shareVideos input:checked')).toHaveCount(2);
+  if (subset) await page.locator('#shareVideos input').first().uncheck();
+  await page.locator('#preparePackage').click();
+  await expect(page.locator('#downloadPackage')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('share.png') });
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#downloadPackage').click(); const download = await downloadPromise;
+  const file = info.outputPath(subset ? 'subset.zip' : 'figure.zip'); await download.saveAs(file);
+  await page.locator('#closeShare').click(); return file;
+}
+async function confirmImported(page, count) {
+  await expect(page.locator('#editor')).toBeVisible(); await expect(page.locator('#saveFigure')).toBeDisabled();
+  await expect(page.locator('#figureStatus')).toHaveValue('Neu');
+  await page.locator('#reviewAll').click();
+  for (let i = 0; i < count; i++) {
+    await expect(page.locator('#acceptVideo')).toBeEnabled(); await page.locator('#acceptVideo').click();
+    if (i + 1 < count) await expect(page.locator('#previewTitle')).toHaveText('portrait');
+  }
+  await expect(page.locator('#preview')).not.toBeVisible(); await page.locator('#saveFigure').click();
+  await expect(page.locator('#editor')).not.toBeVisible();
+}
+test('ZIP download and offline import preserve original videos and detect repeated imports', async ({ page, context }, info) => {
+  await start(page); await addFigure(page); await openEdit(page);
+  await page.locator('#figureStatus').selectOption('Sitzt'); await page.locator('#saveFigure').click();
+  await expect(page.locator('#editor')).not.toBeVisible();
+  const file = await exportPackage(page, info);
+  await context.setOffline(true); await page.reload();
+  await page.locator('#packageFile').setInputFiles(file); await confirmImported(page, 2);
+  await expect(page.locator('.figure-card')).toHaveCount(2);
+  const copies = await page.evaluate(async () => {
+    const { listFigures, figureVideos } = await import('./storage.js'); const { checksum } = await import('./package.js');
+    return Promise.all((await listFigures()).map(async f => ({ title: f.title, description: f.description, tags: f.tags, status: f.status, fingerprint: f.importFingerprint, videos: await Promise.all((await figureVideos(f)).map(async v => ({ name: v.name, crc: await checksum(v.blob) }))) })));
+  });
+  const original = copies.find(f => f.status === 'Sitzt'), imported = copies.find(f => f.status === 'Neu');
+  expect(imported.videos).toEqual(original.videos); expect(imported.tags).toEqual(original.tags); expect(imported.description).toBe(original.description); expect(imported.fingerprint).toBeTruthy();
+  await page.locator('#packageFile').setInputFiles(file); await expect(page.locator('#confirmTitle')).toHaveText('Figur bereits importiert');
+  await page.locator('#confirmCancel').click(); await expect(page.locator('#confirmDialog')).not.toBeVisible(); await expect(page.locator('#editor')).not.toBeVisible();
+  await page.locator('#packageFile').setInputFiles(file); await page.locator('#confirmOK').click();
+  await confirmImported(page, 2); await expect(page.locator('.figure-card')).toHaveCount(3);
+});
+test('ZIP selection, import discard and malformed package leave existing library untouched', async ({ page }, info) => {
+  await start(page); await addFigure(page); const file = await exportPackage(page, info, true);
+  await page.locator('#packageFile').setInputFiles(file); await expect(page.locator('#editor')).toBeVisible();
+  await expect(page.locator('.draft-card')).toHaveCount(1); await expect(page.getByRole('textbox', { name: 'Name von Video 1', exact: true })).toHaveValue('portrait');
+  await page.locator('#editorBack').click(); await page.locator('#confirmOK').click(); await expect(page.locator('#editor')).not.toBeVisible();
+  await expect(page.locator('.figure-card')).toHaveCount(1);
+  await page.locator('#packageFile').setInputFiles({ name: 'broken.zip', mimeType: 'application/zip', buffer: Buffer.from('broken') });
+  await expect(page.locator('#confirmTitle')).toHaveText('Import nicht möglich'); await page.locator('#confirmOK').click();
+  await expect(page.locator('.figure-card')).toHaveCount(1);
+});
+test('ZIP share uses a prepared file and keeps download available when native sharing fails', async ({ page }, info) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { value: () => true });
+    Object.defineProperty(navigator, 'share', { value: async data => { window.sharedFile = { name: data.files[0].name, type: data.files[0].type }; throw new Error('Sharing unavailable'); } });
+  });
+  await start(page); await addFigure(page);
+  await page.getByRole('button', { name: 'Optionen für Ocho' }).click(); await page.getByRole('button', { name: 'Figur teilen', exact: true }).click();
+  await page.locator('#shareVideos input').first().uncheck(); await page.locator('#shareVideos input').last().uncheck(); await expect(page.locator('#preparePackage')).toBeDisabled();
+  await page.locator('#shareVideos input').first().check(); await page.locator('#preparePackage').click();
+  await expect(page.locator('#sendPackage')).toBeVisible(); await page.locator('#sendPackage').click();
+  await expect(page.locator('#shareError')).toContainText('als Dokument'); await expect(page.locator('#downloadPackage')).toBeVisible();
+  expect(await page.evaluate(() => window.sharedFile)).toEqual({ name: 'Ocho.zip', type: 'application/zip' });
+});

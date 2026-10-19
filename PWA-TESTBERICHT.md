@@ -41,3 +41,13 @@ Die veröffentlichte Adresse in Safari öffnen → Teilen → **Zum Home-Bildsch
 Kein Test auf einem physischen iPhone oder Android-Gerät. Die echte Home-Screen-Installation, große Originalvideos, Speicherquoten und Stromsparverhalten sind zusätzlich auf dem Gerät zu prüfen. Der Formatknopf dreht die Ansicht; eine systemweite Ausrichtungssperre ist im iPhone-Browser nicht zuverlässig verfügbar. Empfang aus dem iPhone-Teilen-Menü ist nicht möglich; Import erfolgt innerhalb der App.
 
 Videos liegen separat in Cache Storage, Metadaten und Verweise in IndexedDB. Neue Medien werden vor dem Metadaten-Commit bereitgestellt und bei Fehlern entfernt; bestehende Medien erst nach erfolgreichem Commit gelöscht. Der Service Worker aktualisiert ausschließlich den getrennten App-Cache. Website-Daten löschen entfernt die lokalen Kopien. Eine Speicher-Persistenzanfrage ist möglich, ihre Bewilligung liegt beim Browser. Originaldateien bleiben unverändert; es gibt kein Backup.
+
+## ZIP-Austausch – lokale Ergänzung vom 19.10.2026
+
+- 12 Node-Tests erfolgreich (4 bisherige Logiktests, 8 neue Pakettests).
+- Neue Pakettests: Originalbytes/Metadaten, Ausschluss von Lernstand/IDs, Videoauswahl, Wiederholungserkennung, 250-MiB-Grenze, beschädigte ZIPs, Pfadmanipulation, doppelte Einträge, komprimierte Einträge, unbekannte Version, ungültige Metadaten, Abbruch und CRC32-Referenzwert.
+- Drei zusätzliche Browser-Szenarien vorbereitet, jeweils für Chrome und WebKit: Offline-Export/Import mit Vorschau und Wiederholung; Teilmenge/Verwerfen/fehlerhafte Datei; System-Teilen mit Download-Fallback.
+- JavaScript-Syntaxprüfung und `git diff --check` erfolgreich.
+- **Neue Browser-Szenarien noch nicht ausgeführt:** Kein lokaler Testbrowser; der Download lieferte kein gültiges Browserarchiv. Frühere Browser-Ergebnisse oben betreffen den bisherigen Stand, nicht diese Erweiterung.
+- GitHub-Upload von der automatischen Freigabeprüfung abgelehnt; Veröffentlichung und GitHub-CI sind bis zur ausdrücklich bestätigten Upload-Freigabe ausstehend.
+- Keine echten iPhone-/Android-Gerätetests oder WhatsApp-Übertragung durchgeführt.

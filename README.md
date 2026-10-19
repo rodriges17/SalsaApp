@@ -80,3 +80,19 @@ Für ein TestFlight-Release das vorhandene App-Icon prüfen, Release auf einem e
 `LibraryTests`: Byte-identische Kopie, unveränderte Originale, Bestätigungspflicht, Rollback bei zweitem Video, Umbenennen/Reihenfolge/Entfernen, Konflikterkennung, fehlende Quelle, Mindestvideozahl/fremde Dateien, Löschen, Pfadprüfung, Loopgrenzen echtes AVFoundation-Video sowie Videowechsel mit Beibehaltung der Lerneinstellungen und Pausieren während eines Sprungs. `NavigationTests`: Übersicht, Editor, Speichersperre ohne Video Verwerfen-Dialog sowie Multi-Video-Player, Fit/Crop und manueller Hoch-/Querformatwechsel mit synthetischen Videos.
 
 Der tatsächliche CI-Status steht unter Actions; nur ein grüner Lauf bestätigt Build und Tests. Hardware-Tests (insbesondere echte Fotos-/Dateien-Freigabe, große Videos, Geräteausrichtung, A–B-Wiedergabe und App-Group-Signierung) bleiben vor TestFlight erforderlich. Android-Daten werden nicht automatisch auf iOS übertragen.
+
+## Figuren zwischen PWAs teilen
+
+In der Figurenübersicht **⋮ → Figur teilen** wählen. Alle Videos sind zunächst ausgewählt; einzelne können abgewählt werden. **ZIP vorbereiten** erstellt ein Paket mit unveränderten Originalvideos, Name, Beschreibung, Tags, Videonamen und Reihenfolge. Persönlicher Lernstand und interne IDs werden nicht übertragen. Maximal 250 MiB (in der Oberfläche „250 MB“), 100 Videos.
+
+Danach **ZIP teilen** wählen, wenn das Gerät Datei-Teilen unterstützt. WhatsApp wird im Systemdialog gewählt. Alternativ **ZIP speichern** und in WhatsApp als **Dokument** anhängen. Die App lädt dabei keine Videos auf einen eigenen Server hoch.
+
+Empfänger speichern den Anhang in „Dateien“, öffnen die PWA und wählen **Figur importieren**. Alle neuen Videos müssen in der Vorschau bestätigt werden. Erst **Figur speichern** legt eine neue lokale Figur an, mit Lernstand **Neu**. Vorhandene Figuren werden nicht überschrieben. Bei einem wiedererkannten Paket fragt die App nach, ob eine weitere Kopie angelegt werden soll. Ein Abbruch legt keine dauerhaften Videos an.
+
+Das funktioniert zunächst ausschließlich zwischen PWAs. Die native Android- und iOS-App unterstützen das Format noch nicht. Direktes Teilen und die Zuverlässigkeit großer Pakete müssen zusätzlich auf echten Smartphones geprüft werden.
+
+### Austauschformat v1
+
+Standard-ZIP, Methode STORE (keine Komprimierung), UTF-8-Dateinamen, ohne ZIP64, Verschlüsselung, Kommentare, Extra-Felder oder Data Descriptors. Enthalten sind `figure.json` und `videos/1.mp4` usw. `figure.json` enthält `format: "salsa-figure"`, `version: 1`, `title`, `description`, `tags` und `videos: [{path, name, type, size}]`. Unterstützte MIME-Typen: MP4, QuickTime, M4V, WebM, Ogg. Das jeweilige Gerät muss das Video zusätzlich abspielen können.
+
+Der Import prüft Größe, Struktur, Pfade, Anzahl, CRC32-Prüfsummen und Schema vor dem Öffnen des Entwurfs. Fremde oder nachträglich neu komprimierte ZIP-Dateien werden abgewiesen. Der Wiederholungshinweis verwendet SHA-256 über normalisierte Metadaten, Größen und CRC32; er ist keine Authentizitätsprüfung. Der Fingerabdruck wird zusammen mit der Figur gespeichert und beim Bearbeiten erhalten.

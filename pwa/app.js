@@ -1,3 +1,4 @@
+import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
 import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports } from './storage.js';
 
@@ -54,7 +55,7 @@ function renderOverview() {
     options.setAttribute('aria-label', `Optionen für ${figure.title}`); options.setAttribute('aria-expanded', 'false');
     function showMenu() {
       options.setAttribute('aria-expanded', 'true'); const menu = el('div', 'card-menu');
-      menu.append(button('Bearbeiten', () => { closeMenus(); openEditor(figure); }), button('Löschen', async () => {
+      menu.append(button('Figur teilen', () => { closeMenus(); openShare(figure); }), button('Bearbeiten', () => { closeMenus(); openEditor(figure); }), button('Löschen', async () => {
         closeMenus(); const accepted = await confirmAction({ title: `„${figure.title}“ löschen?`, message: 'Die Figur und alle zugehörigen lokalen Videokopien werden entfernt. Die Originaldateien bleiben erhalten.', ok: 'Löschen' });
         if (accepted) { try { await deleteFigure(figure); changed(); await refresh(); toast('Figur gelöscht.'); } catch (error) { toast(storageMessage(error)); await refresh(); } }
       }, 'danger')); card.append(menu);
@@ -87,7 +88,7 @@ $('closeTags').onclick = () => $('tagsDialog').close();
 function formValue() { return { title: $('figureTitle').value, description: $('figureDescription').value, status: $('figureStatus').value, tags: cleanTags($('figureTags').value) }; }
 function draftSignature(drafts) { return JSON.stringify(drafts.map(d => ({ id: d.id, name: d.name, confirmed: d.confirmed }))); }
 function isDirty() { return editor && (JSON.stringify(formValue()) !== editor.initialForm || draftSignature(editor.drafts) !== editor.initialDrafts); }
-async function openEditor(figure = null) {
+async function openEditor(figure = null, imported = null) {
   if (opening || editor || learning) return; opening = true;
   try {
     const records = figure ? await figureVideos(figure) : [];
@@ -95,6 +96,13 @@ async function openEditor(figure = null) {
     $('figureTitle').value = figure?.title ?? ''; $('figureDescription').value = figure?.description ?? '';
     $('figureStatus').value = figure?.status ?? 'Neu'; $('figureTags').value = figure?.tags.join(', ') ?? '';
     editor.initialForm = JSON.stringify(formValue()); editor.initialDrafts = draftSignature(editor.drafts);
+    editor.importFingerprint = figure?.importFingerprint ?? null;
+    if (imported) {
+      editor.importFingerprint = imported.fingerprint;
+      editor.drafts = imported.drafts.map(d => ({ ...d, id: crypto.randomUUID() }));
+      $('figureTitle').value = imported.title; $('figureDescription').value = imported.description;
+      $('figureTags').value = imported.tags.join(', '); $('figureStatus').value = 'Neu';
+    }
     $('editorHeading').textContent = figure ? 'Figur bearbeiten' : 'Figur hinzufügen'; setError('editorError', null);
     renderDrafts(); setBusy(false); $('editor').showModal(); pushRoute('editor'); $('figureTitle').focus();
   } catch (error) { toast(storageMessage(error)); } finally { opening = false; }
@@ -142,7 +150,7 @@ $('editorForm').addEventListener('submit', async event => {
   event.preventDefault(); if (!editor || editor.busy || $('saveFigure').disabled) return;
   const active = editor; setError('editorError', null); setBusy(true);
   try {
-    await saveFigure({ id: active.id, ...formValue() }, active.drafts, active.revision);
+    await saveFigure({ id: active.id, ...formValue(), importFingerprint: active.importFingerprint }, active.drafts, active.revision);
     changed(); await refresh();
     if (editor === active) { active.allowClose = true; setBusy(false); history.back(); toast('Figur lokal gespeichert.'); }
   } catch (error) { if (editor === active) { setBusy(false); setError('editorError', storageMessage(error)); } }
@@ -311,3 +319,93 @@ await refresh();
 // Keep the fixed save footer above the iOS software keyboard where Visual Viewport is available.
 function updateViewport() { document.documentElement.style.setProperty('--app-height', `${window.visualViewport?.height ?? innerHeight}px`); }
 window.visualViewport?.addEventListener('resize', updateViewport); updateViewport();
+
+// Export preparation is separate from the Share click, preserving user activation.
+let sharing = null, packageImport = null;
+async function openShare(figure) {
+  if (opening || editor || learning || sharing || packageImport) return;
+  opening = true;
+  try {
+    const records = await figureVideos(figure);
+    sharing = { figure, records, selected: new Set(records.map(r => r.id)), file: null, controller: null, url: null };
+    $('shareTitle').textContent = `„${figure.title}“ teilen`;
+    $('shareVideos').replaceChildren(); setError('shareError', null);
+    records.forEach((record, index) => {
+      const label = el('label', 'share-choice'), input = el('input'); input.type = 'checkbox'; input.checked = true;
+      input.onchange = () => {
+        if (!sharing) return;
+        if (input.checked) sharing.selected.add(record.id); else sharing.selected.delete(record.id);
+        clearShareFile(); updateShare();
+      };
+      label.append(input, el('span', '', `${record.name || `Video ${index + 1}`} · ${(record.blob.size / 1048576).toFixed(1)} MB`));
+      $('shareVideos').append(label);
+    });
+    updateShare(); $('shareDialog').showModal();
+  } catch (error) { toast(storageMessage(error)); } finally { opening = false; }
+}
+function clearShareFile() {
+  if (!sharing) return;
+  releaseURL(sharing.url); sharing.url = null; sharing.file = null;
+  $('sendPackage').hidden = true; $('downloadPackage').hidden = true;
+}
+function updateShare() {
+  if (!sharing) return;
+  const records = sharing.records.filter(r => sharing.selected.has(r.id));
+  const size = packageSize(sharing.figure, records);
+  $('shareSize').textContent = `${records.length} Videos · ca. ${(size / 1048576).toFixed(1)} MB / 250 MB`;
+  $('preparePackage').disabled = !!sharing.controller || !records.length || records.length > 100 || size > MAX_PACKAGE_BYTES;
+  $('shareVideos').disabled = !!sharing.controller;
+  $('shareProgress').hidden = !sharing.controller;
+  $('preparePackage').hidden = !!sharing.file;
+  if (!sharing.file) { $('sendPackage').hidden = true; $('downloadPackage').hidden = true; }
+}
+function closeShare() {
+  sharing?.controller?.abort(); clearShareFile(); sharing = null; $('shareDialog').close();
+}
+$('closeShare').onclick = closeShare;
+$('shareDialog').addEventListener('cancel', event => { event.preventDefault(); closeShare(); });
+$('preparePackage').onclick = async () => {
+  const active = sharing; if (!active || active.controller) return;
+  active.controller = new AbortController(); setError('shareError', null); updateShare();
+  try {
+    const blob = await exportFigure(active.figure, active.records.filter(r => active.selected.has(r.id)), active.controller.signal);
+    if (sharing !== active) return;
+    active.file = new File([blob], packageFilename(active.figure.title), { type: 'application/zip' });
+    active.url = URL.createObjectURL(active.file);
+    $('downloadPackage').href = active.url; $('downloadPackage').download = active.file.name;
+    $('downloadPackage').hidden = false;
+    $('sendPackage').hidden = !(navigator.share && navigator.canShare?.({ files: [active.file] }));
+  } catch (error) { if (sharing === active && error.name !== 'AbortError') setError('shareError', storageMessage(error)); }
+  finally { if (sharing === active) { active.controller = null; updateShare(); } }
+};
+$('sendPackage').onclick = async () => {
+  if (!sharing?.file) return;
+  try { await navigator.share({ files: [sharing.file] }); }
+  catch (error) { if (error.name !== 'AbortError') setError('shareError', 'Direktes Teilen ist nicht möglich. Bitte ZIP speichern und in WhatsApp als Dokument anhängen.'); }
+};
+$('importFigure').onclick = () => { if (!editor && !opening && !packageImport) { $('packageFile').value = ''; $('packageFile').click(); } };
+$('cancelImport').onclick = () => { packageImport?.abort(); packageImport = null; $('importProgressDialog').close(); };
+$('importProgressDialog').addEventListener('cancel', event => { event.preventDefault(); $('cancelImport').click(); });
+$('packageFile').onchange = async () => {
+  const file = $('packageFile').files[0]; if (!file || editor || opening || packageImport) return;
+  const controller = new AbortController(); packageImport = controller; $('importProgressDialog').showModal();
+  try {
+    const imported = await importFigure(file, controller.signal);
+    if (packageImport !== controller) return;
+    $('importProgressDialog').close();
+    const current = await listFigures();
+    if (current.some(f => f.importFingerprint === imported.fingerprint)) {
+      const accepted = await confirmAction({ title: 'Figur bereits importiert', message: 'Dieses Paket wurde bereits importiert. Trotzdem eine weitere eigene Kopie anlegen?', ok: 'Weitere Kopie anlegen' });
+      if (!accepted || packageImport !== controller) return;
+    }
+    if (packageImport !== controller) return;
+    await openEditor(null, imported);
+  } catch (error) {
+    if (packageImport === controller && error.name !== 'AbortError') {
+      $('importProgressDialog').close();
+      await confirmAction({ title: 'Import nicht möglich', message: storageMessage(error), ok: 'Verstanden', cancel: 'Schließen' });
+    }
+  } finally {
+    if (packageImport === controller) { packageImport = null; $('importProgressDialog').close(); $('packageFile').value = ''; }
+  }
+};

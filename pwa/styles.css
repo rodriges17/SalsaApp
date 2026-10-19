@@ -2,3 +2,11 @@
 @media(orientation:portrait){.player-screen.is-landscape{inset:auto;left:50%;top:50%;width:100dvh;height:100dvw;transform:translate(-50%,-50%) rotate(90deg);padding:0 10px}.player-screen.is-landscape .screen-header{padding-top:4px;min-height:48px}.player-screen.is-landscape .video-choice{padding-bottom:2px}.player-screen.is-landscape .timeline{padding-top:0}.player-screen.is-landscape .player-controls{padding-top:4px}.player-screen.is-landscape .ab-status{padding-bottom:0}}
 @media(min-width:760px){.overview{padding-top:40px}.tagline{margin-top:30px}.card-thumb{width:130px;height:100px}.figure-card{padding:18px}.card-title{font-size:23px}.player-description{max-height:80px}.preview-body video{max-height:none}.screen-header{padding-left:max(12px,calc((100% - 1000px)/2));padding-right:max(12px,calc((100% - 1000px)/2))}}
 @media(prefers-reduced-motion:no-preference){button{transition:background-color .12s,filter .12s}}
+
+.add-dock { gap: .5rem; flex-wrap: wrap; }
+.add-dock > button { flex: 1; }
+#shareVideos { border: 0; padding: 0; max-height: 35dvh; overflow-y: auto; }
+.share-choice { display: flex; align-items: center; gap: .75rem; padding: .65rem 0; overflow-wrap: anywhere; }
+.share-choice input { width: 1.4rem; height: 1.4rem; flex-shrink: 0; accent-color: #ad8ce8; }
+.download-package { display: block; text-align: center; padding: .8rem; border-radius: .8rem; margin-top: .6rem; }
+.download-package[hidden] { display: none; }
