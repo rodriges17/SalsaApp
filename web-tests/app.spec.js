@@ -153,6 +153,13 @@ async function exportPackage(page, info, subset = false) {
   const file = info.outputPath(subset ? 'subset.zip' : 'figure.zip'); await download.saveAs(file);
   await page.locator('#closeShare').click(); return file;
 }
+async function choosePackage(page, file) {
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: 'Figur importieren', exact: true }).click()
+  ]);
+  await chooser.setFiles(file);
+}
 async function confirmImported(page, count) {
   await expect(page.locator('#editor')).toBeVisible(); await expect(page.locator('#saveFigure')).toBeDisabled();
   await expect(page.locator('#figureStatus')).toHaveValue('Neu');
@@ -170,7 +177,7 @@ test('ZIP download and offline import preserve original videos and detect repeat
   await expect(page.locator('#editor')).not.toBeVisible();
   const file = await exportPackage(page, info);
   await context.setOffline(true); await page.reload();
-  await page.locator('#packageFile').setInputFiles(file); await confirmImported(page, 2);
+  await choosePackage(page, file); await confirmImported(page, 2);
   await expect(page.locator('.figure-card')).toHaveCount(2);
   const copies = await page.evaluate(async () => {
     const { listFigures, figureVideos } = await import('./storage.js'); const { checksum } = await import('./package.js');
@@ -178,18 +185,18 @@ test('ZIP download and offline import preserve original videos and detect repeat
   });
   const original = copies.find(f => f.status === 'Sitzt'), imported = copies.find(f => f.status === 'Neu');
   expect(imported.videos).toEqual(original.videos); expect(imported.tags).toEqual(original.tags); expect(imported.description).toBe(original.description); expect(imported.fingerprint).toBeTruthy();
-  await page.locator('#packageFile').setInputFiles(file); await expect(page.locator('#confirmTitle')).toHaveText('Figur bereits importiert');
+  await choosePackage(page, file); await expect(page.locator('#confirmTitle')).toHaveText('Figur bereits importiert');
   await page.locator('#confirmCancel').click(); await expect(page.locator('#confirmDialog')).not.toBeVisible(); await expect(page.locator('#editor')).not.toBeVisible();
-  await page.locator('#packageFile').setInputFiles(file); await page.locator('#confirmOK').click();
+  await choosePackage(page, file); await page.locator('#confirmOK').click();
   await confirmImported(page, 2); await expect(page.locator('.figure-card')).toHaveCount(3);
 });
 test('ZIP selection, import discard and malformed package leave existing library untouched', async ({ page }, info) => {
   await start(page); await addFigure(page); const file = await exportPackage(page, info, true);
-  await page.locator('#packageFile').setInputFiles(file); await expect(page.locator('#editor')).toBeVisible();
+  await choosePackage(page, file); await expect(page.locator('#editor')).toBeVisible();
   await expect(page.locator('.draft-card')).toHaveCount(1); await expect(page.getByRole('textbox', { name: 'Name von Video 1', exact: true })).toHaveValue('portrait');
   await page.locator('#editorBack').click(); await page.locator('#confirmOK').click(); await expect(page.locator('#editor')).not.toBeVisible();
   await expect(page.locator('.figure-card')).toHaveCount(1);
-  await page.locator('#packageFile').setInputFiles({ name: 'broken.zip', mimeType: 'application/zip', buffer: Buffer.from('broken') });
+  await choosePackage(page, { name: 'broken.zip', mimeType: 'application/zip', buffer: Buffer.from('broken') });
   await expect(page.locator('#confirmTitle')).toHaveText('Import nicht möglich'); await page.locator('#confirmOK').click();
   await expect(page.locator('.figure-card')).toHaveCount(1);
 });

@@ -4,7 +4,7 @@
 @media(prefers-reduced-motion:no-preference){button{transition:background-color .12s,filter .12s}}
 
 .add-dock { gap: .5rem; flex-wrap: wrap; }
-.add-dock > button { flex: 1; }
+.add-dock > button { flex: 1; pointer-events: auto; }
 #shareVideos { border: 0; padding: 0; max-height: 35dvh; overflow-y: auto; }
 .share-choice { display: flex; align-items: center; gap: .75rem; padding: .65rem 0; overflow-wrap: anywhere; }
 .share-choice input { width: 1.4rem; height: 1.4rem; flex-shrink: 0; accent-color: #ad8ce8; }
