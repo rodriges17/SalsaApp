@@ -1,13 +1,13 @@
 # PWA – Build- und Testbericht
 
-Geprüfter Quellcode: `d63c543ffce44a81721c654eb6ab3b4401e355aa`.
+Geprüfter Quellcode: `cd9e102c76840da31be6947aa5a56d7a6b1924b4`.
 Stand: 19.10.2026.
 
-[Testlauf und Veröffentlichung](https://github.com/rodriges17/SalsaAppIOS/actions/runs/39179746381)
+[Testlauf und Veröffentlichung](https://github.com/rodriges17/SalsaAppIOS/actions/runs/39180954479)
 
 ## Ergebnis
 
-**12 Logiktests und 16 Browser-Tests erfolgreich, 0 Fehler.** GitHub Pages wurde erfolgreich veröffentlicht. Die Live-Adresse liefert den Service Worker `2026-10-19-sharing-v1` einschließlich des neuen Paketmoduls.
+**12 Logiktests und 16 Browser-Tests erfolgreich, 0 Fehler.** GitHub Pages wurde erfolgreich veröffentlicht. Die Live-Adresse liefert den Service Worker `2026-10-19-sharing-v2` einschließlich des neuen Paketmoduls.
 
 **App:** https://rodriges17.github.io/SalsaAppIOS/
 
@@ -45,3 +45,7 @@ Keine Tests auf physischen iPhones oder Android-Geräten und keine echte WhatsAp
 Videos liegen separat in Cache Storage, Metadaten und Verweise in IndexedDB. Neue Medien werden vor dem Metadaten-Commit bereitgestellt und bei Fehlern entfernt; bestehende Medien erst nach erfolgreichem Commit gelöscht. Der Service Worker aktualisiert ausschließlich den getrennten App-Cache. Website-Daten löschen entfernt die lokalen Kopien. Eine Speicher-Persistenzanfrage ist möglich, ihre Bewilligung liegt beim Browser.
 
 ZIP-Pakete sind manuelle Kopien einzelner Figuren mit ausgewählten Videos, kein automatisches vollständiges Backup. Der Wiederholungsfingerabdruck ist keine Authentizitätsprüfung. Die App stellt auf iPhones kein Ziel für empfangene Dateien im System-Teilen-Menü bereit; Import erfolgt innerhalb der PWA.
+
+## Korrektur des Import-Buttons
+
+Die feste untere Leiste hatte `pointer-events: none`; nur der ursprüngliche Hinzufügen-Button besaß eine Ausnahme. Nun erhalten alle Buttons der Leiste `pointer-events: auto`. Die Importtests klicken den sichtbaren Button und warten auf den Dateiauswahldialog, statt das versteckte Datei-Input direkt zu befüllen. Auch Wiederholungsimport, fehlerhafte Datei und Offline-Import durchlaufen diesen Weg. Alle 28 Tests des oben verlinkten Laufs sind erfolgreich. Die Version sharing-v2 wurde live bestätigt.
