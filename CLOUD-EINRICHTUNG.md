@@ -4,7 +4,7 @@ Projekt `tzaprobvauikssnpiucl`. Der öffentliche Schlüssel ist in `pwa/cloud-co
 
 ## Status
 
-Im Projekt wurden die fünf Migrationen und die Edge Function bereits eingerichtet. Der Administrator ist angelegt. Ein echter API-/Storage-Test mit künstlichem Video war erfolgreich; die PWA-Veröffentlichung erfolgt separat über den Pull Request. Die folgenden Einrichtungsschritte sind für eine Neuinstallation dokumentiert.
+Im Projekt wurden die sechs Migrationen und die Edge Function bereits eingerichtet. Der Administrator ist angelegt. Ein echter API-/Storage-Test mit künstlichem Video war erfolgreich; die PWA-Veröffentlichung erfolgt separat über den Pull Request. Die folgenden Einrichtungsschritte sind für eine Neuinstallation dokumentiert.
 
 Der Code stellt Datenbankmigrationen, eine Edge Function und die PWA bereit. Erst nach Einrichtung im Supabase-Projekt sind echte Cloud-Aufrufe möglich. Die bevorzugte Einrichtung erfolgt über die Supabase-Anbindung in ChatGPT nach Freigabe des Projekts. Alternativ die folgenden Schritte im Dashboard ausführen.
 

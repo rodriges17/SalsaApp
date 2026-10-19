@@ -21,11 +21,11 @@ await root('select cloud_bootstrap($1,$2)', [A,'admin@example.test']);
 await api(A,'admin_person',{id:B,enabled:true,quota:250000000}); await api(A,'admin_person',{id:C,enabled:false,quota:0});
 let library, other, figure, revision, nextRevision;
 const videos = [{type:'video/mp4',size:3}];
-async function uploaded(who, fid) {
+async function uploaded(who, fid, publicAllowed) {
  const job = await api(who,'reserve',{figure:fid,videos});
  await root("insert into storage.objects(bucket_id,name,metadata) values ('salsa-cloud',$1,$2)", [job.media[0].path,JSON.stringify({size:3,mimetype:'video/mp4'})]);
  await root('select cloud_finish_media($1,$2)',[job.media[0].id,who]);
- const done = await api(who,'commit',{job:job.job,title:'Drehung',description:'Test',tags:['Salsa'],videos:[{id:job.media[0].id,name:'Führung'}]}); return done;
+ const done = await api(who,'commit',{job:job.job,...(publicAllowed===undefined?{}:{public_allowed:publicAllowed}),title:'Drehung',description:'Test',tags:['Salsa'],videos:[{id:job.media[0].id,name:'Führung'}]}); return done;
 }
 test('cloud: anonymous users cannot bootstrap, change limits or create libraries', async () => {
  await assert.rejects(api(null,'library_save',{title:'Bad',visibility:'public',collaborative:true,moderated:false}));
@@ -84,6 +84,13 @@ test('cloud: one figure serves multiple libraries, moderated updates retain thei
  assert.equal(entry.published.id,revision); assert.equal(entry.pending.id,nextRevision);
  await api(A,'review',{library,figure,accept:false});
  assert.equal((await api(A,'library',{id:library})).entries[0].published.id,revision);
+});
+test('cloud: publication consent and a new revision are committed atomically', async () => {
+ nextRevision=(await uploaded(B,figure,false)).revision;
+ assert.equal((await api(null,'library',{id:other})).entries.length,0);
+ assert.equal((await api(B,'state')).own_figures[0].public_allowed,false);
+ await api(B,'public_permission',{figure,allowed:true});
+ assert.equal((await api(null,'library',{id:other})).entries[0].published.id,nextRevision);
 });
 test('cloud: suspended writers cannot upload; library deletion does not delete shared media', async () => {
  await api(A,'admin_person',{id:B,enabled:false,quota:250000000});

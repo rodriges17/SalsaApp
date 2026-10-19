@@ -150,10 +150,12 @@ async function publishForm() {
   const library = select(box, 'Bibliothek', libs.map(l => [l.id, l.title]));
   const figure = select(box, 'Neue Figur oder neue Version', [['', 'Neue Cloud-Figur'], ...state.own_figures.map(f => [f.id, f.revisions[0]?.title ?? f.id])]);
   const allowed = checkbox(box, 'Öffentliche Veröffentlichung dieser Figur erlauben');
+  figure.onchange = () => { allowed.checked = state.own_figures.find(f => f.id === figure.value)?.public_allowed ?? false; };
   box.append(action('Ausgewählte Videos hochladen', () => run('Upload vorbereiten …', async () => {
     const videos = selected.filter(([check]) => check.checked).map(([, v]) => v);
     if (!videos.length) throw new Error('Bitte mindestens ein Video auswählen.');
     if (videos.some(v => v.blob.size > CLOUD_FILE_LIMIT)) throw new Error('Ein Video überschreitet 50 MB. Bitte ein kleineres Originalvideo auswählen.');
+    if (state.libraries.find(l => l.id === library.value)?.visibility === 'public' && !allowed.checked) throw new Error('Für diese öffentliche Bibliothek musst du der öffentlichen Veröffentlichung zustimmen.');
     let job = null; controller = new AbortController(); document.getElementById('cloudCancelUpload').hidden = false;
     try {
       const reserved = await cloudCall('reserve', { figure: figure.value || null, videos: videos.map(v => ({ size: v.blob.size, type: v.blob.type })) }); job = reserved.job;
@@ -163,8 +165,7 @@ async function publishForm() {
         await cloudCall('finalize', { id: reserved.media[i].id });
       }
       controller.signal.throwIfAborted();
-      const saved = await cloudCall('commit', { job, title: local.title, description: local.description, tags: local.tags, videos: reserved.media.map((m, i) => ({ id: m.id, name: videos[i].name })) }); job = null;
-      await cloudCall('public_permission', { figure: saved.figure, allowed: allowed.checked });
+      const saved = await cloudCall('commit', { job, public_allowed: allowed.checked, title: local.title, description: local.description, tags: local.tags, videos: reserved.media.map((m, i) => ({ id: m.id, name: videos[i].name })) }); job = null;
       await cloudCall('attach', { library: library.value, revision: saved.revision });
       source = null; await load(library.value);
     } catch (error) {

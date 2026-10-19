@@ -23,7 +23,7 @@ Der einmalige Bootstrap-Schlüssel wurde nach Anlage des Administrators aus der 
 
 ## Lokale Datenbank- und Logiktests
 
-20 Tests erfolgreich: 8 neue Datenbanktests mit PostgreSQL/PGlite und nachgebildetem Supabase-Auth-/Storage-Schema sowie 12 bisherige Logik-/Pakettests. Abgedeckt sind Rechte, öffentliche/private Bibliotheken, Freigabe von Personen, Worst-Case-Reservierungen, Quotenüberschreitung, unvollständige Uploads, Moderation, öffentliche Zustimmung, gemeinsame Figuren, versionierte Updates, Sperren und Quotenfreigabe erst nach Dateilöschung.
+21 Tests erfolgreich: 9 neue Datenbanktests mit PostgreSQL/PGlite und nachgebildetem Supabase-Auth-/Storage-Schema sowie 12 bisherige Logik-/Pakettests. Abgedeckt sind Rechte, öffentliche/private Bibliotheken, Freigabe von Personen, Worst-Case-Reservierungen, Quotenüberschreitung, unvollständige Uploads, Moderation, öffentliche Zustimmung, gemeinsame Figuren, versionierte Updates, Sperren und Quotenfreigabe erst nach Dateilöschung.
 
 Die öffentliche SQL-Schnittstelle sperrt Reservierung/Commit und administrative Quota-Änderungen vor dem Lesen der veränderlichen Berechtigungen über dieselbe transaktionale Sperre. Diese zusätzliche Migration ist im Projekt eingespielt. Ein Lasttest mit vielen parallelen echten Geräten wurde nicht durchgeführt.
 
@@ -33,7 +33,7 @@ Deno-Typprüfung der Edge Function erfolgreich. Supabase SDK auf 2.118.0 festgel
 
 Die Cloud-Oberflächentests simulieren die API ausdrücklich. Sie ersetzen die oben getrennt dokumentierte echte Supabase-Prüfung nicht. Bestehende Player-, Mehrvideo-, ZIP-, Touch-, Offline- und Cache-Upgrade-Tests laufen weiterhin in Chrome/Android-Ansicht und WebKit/iPhone-Ansicht.
 
-**30 Browser-Tests erfolgreich (15 Szenarien je Chrome und WebKit), zusammen mit den 20 Logik-/Datenbanktests insgesamt 50 erfolgreiche Prüfungen.** [Erfolgreicher Lauf](https://github.com/rodriges17/SalsaAppIOS/actions/runs/39192377966). Nach der zusätzlichen WHERE-Korrektur für Supabases Safe-Update-Regel wurden alle 20 lokalen Tests erneut ausgeführt und die echte Admin-Limit-Aktion mit HTTP 200 bestätigt. Der finale Branch-Lauf prüft auch diese Migration erneut. Die ersten beiden Runden hatten je drei WebKit-Fehler beim Abfangen der externen simulierten API; die UI-Simulation verwendet daher nun eine lokale API ohne Service Worker. Offline-Neustarts bleiben separat durch die bestehenden App-Tests abgedeckt; daraus wird kein Erfolg abgeleitet.
+**30 Browser-Tests erfolgreich (15 Szenarien je Chrome und WebKit), zusammen mit den 21 Logik-/Datenbanktests insgesamt 51 erfolgreiche Prüfungen.** [Erfolgreicher Lauf](https://github.com/rodriges17/SalsaAppIOS/actions/runs/39192841598). Nach der zusätzlichen WHERE-Korrektur für Supabases Safe-Update-Regel wurden alle 21 lokalen Tests erneut ausgeführt und die echte Admin-Limit-Aktion mit HTTP 200 bestätigt. Der finale Branch-Lauf prüft zusätzlich die atomare Speicherung von Veröffentlichungszustimmung und Version. Die Versionsauswahl übernimmt die bestehende Zustimmung; ein Widerruf kann keine neue Version kurzzeitig veröffentlichen. Die ersten beiden Runden hatten je drei WebKit-Fehler beim Abfangen der externen simulierten API; die UI-Simulation verwendet daher nun eine lokale API ohne Service Worker. Offline-Neustarts bleiben separat durch die bestehenden App-Tests abgedeckt; daraus wird kein Erfolg abgeleitet.
 
 ## Sicherheitsprüfung
 
