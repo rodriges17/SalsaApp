@@ -96,3 +96,9 @@ Das funktioniert zunächst ausschließlich zwischen PWAs. Die native Android- un
 Standard-ZIP, Methode STORE (keine Komprimierung), UTF-8-Dateinamen, ohne ZIP64, Verschlüsselung, Kommentare, Extra-Felder oder Data Descriptors. Enthalten sind `figure.json` und `videos/1.mp4` usw. `figure.json` enthält `format: "salsa-figure"`, `version: 1`, `title`, `description`, `tags` und `videos: [{path, name, type, size}]`. Unterstützte MIME-Typen: MP4, QuickTime, M4V, WebM, Ogg. Das jeweilige Gerät muss das Video zusätzlich abspielen können.
 
 Der Import prüft Größe, Struktur, Pfade, Anzahl, CRC32-Prüfsummen und Schema vor dem Öffnen des Entwurfs. Fremde oder nachträglich neu komprimierte ZIP-Dateien werden abgewiesen. Der Wiederholungshinweis verwendet SHA-256 über normalisierte Metadaten, Größen und CRC32; er ist keine Authentizitätsprüfung. Der Fingerabdruck wird zusammen mit der Figur gespeichert und beim Bearbeiten erhalten.
+
+## Cloud-Bibliotheken (Testversion)
+
+Die PWA erhält öffentliche/private Bibliotheken, eingeladene Mitwirkende, Freigaben, manuelle Anmeldelinks und lokale Offline-Übernahme. Die kostenlose Testkonfiguration nutzt einen privaten Supabase-Bucket mit 900 MB Gesamtlimit und 50 MB je Video. Plattformfreigaben und Quoten werden serverseitig geprüft.
+
+Einrichtung und Bedienung: [CLOUD-EINRICHTUNG.md](CLOUD-EINRICHTUNG.md). Validierung und Grenzen: [CLOUD-TESTBERICHT.md](CLOUD-TESTBERICHT.md). Die Erweiterung liegt zunächst im Pull Request und ist erst nach Veröffentlichung in der Live-PWA sichtbar.

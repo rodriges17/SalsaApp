@@ -16,6 +16,7 @@ Mit einem künstlich erzeugten H.264-Video und einem temporären Testkonto wurde
 - Nach Zustimmung: signierter Download ohne Anmeldung. SHA-256 der geladenen Videobytes stimmt mit dem Original-Testvideo überein.
 - Widerruf der Zustimmung verbirgt die Figur wieder für öffentliche Lesende.
 - Gesperrte Upload-Freigabe verhindert weitere Reservierungen.
+- Änderung des Gesamtlimits im echten Projekt erfolgreich; Supabases Safe-Update-Regel wird durch eine explizite WHERE-Bedingung erfüllt.
 - Alle Testbibliotheken, Versionen, Videos und das temporäre Konto wurden entfernt. Verifiziert: 0 Cloud-Mediendatensätze, 0 Storage-Objekte, 0 Bibliotheken, 1 Person (Administrator).
 
 Der einmalige Bootstrap-Schlüssel wurde nach Anlage des Administrators aus der Serverfunktion entfernt. Keine E-Mail oder WhatsApp-Nachricht wurde automatisch verschickt. Es wurden keine Nutzervideos verwendet.
@@ -32,11 +33,11 @@ Deno-Typprüfung der Edge Function erfolgreich. Supabase SDK auf 2.118.0 festgel
 
 Die Cloud-Oberflächentests simulieren die API ausdrücklich. Sie ersetzen die oben getrennt dokumentierte echte Supabase-Prüfung nicht. Bestehende Player-, Mehrvideo-, ZIP-, Touch-, Offline- und Cache-Upgrade-Tests laufen weiterhin in Chrome/Android-Ansicht und WebKit/iPhone-Ansicht.
 
-Aktueller Lauf und Ergebnis werden nach Abschluss ergänzt. Die erste Runde hatte drei WebKit-Fehler durch die CORS-Antworten der simulierten API; daraus wird kein Erfolg abgeleitet.
+**30 Browser-Tests erfolgreich (15 Szenarien je Chrome und WebKit), zusammen mit den 20 Logik-/Datenbanktests insgesamt 50 erfolgreiche Prüfungen.** [Erfolgreicher Lauf](https://github.com/rodriges17/SalsaAppIOS/actions/runs/39192377966). Nach der zusätzlichen WHERE-Korrektur für Supabases Safe-Update-Regel wurden alle 20 lokalen Tests erneut ausgeführt und die echte Admin-Limit-Aktion mit HTTP 200 bestätigt. Der finale Branch-Lauf prüft auch diese Migration erneut. Die ersten beiden Runden hatten je drei WebKit-Fehler beim Abfangen der externen simulierten API; die UI-Simulation verwendet daher nun eine lokale API ohne Service Worker. Offline-Neustarts bleiben separat durch die bestehenden App-Tests abgedeckt; daraus wird kein Erfolg abgeleitet.
 
 ## Sicherheitsprüfung
 
-Supabase Advisors meldeten keine ERROR-/WARN-Sicherheitsbefunde. Der INFO-Hinweis [RLS ohne Policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) ist hier absichtlich: Browserrollen besitzen keine Tabellenrechte, RLS verweigert standardmäßig jede Zeile. Zugriff erfolgt über geprüfte API-Aktionen; privilegierte Implementierungen liegen im nicht exponierten Schema `cloud_private`, öffentliche Wrapper sind Security Invoker. Storage erlaubt nur neue reservierte Pfade; keine Browser-Policies für Lesen, Ersetzen oder Löschen.
+Supabase Advisors meldeten keine ERROR-Sicherheitsbefunde. Ein projektweiter WARN-Hinweis betrifft [deaktivierten Schutz gegen geleakte Passwörter](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection); die App verwendet ausschließlich einmalige Anmeldelinks und vergibt keine Passwörter. Dieser Auth-Hinweis wird nicht als behoben ausgegeben. Der INFO-Hinweis [RLS ohne Policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) ist hier absichtlich: Browserrollen besitzen keine Tabellenrechte, RLS verweigert standardmäßig jede Zeile. Zugriff erfolgt über geprüfte API-Aktionen; privilegierte Implementierungen liegen im nicht exponierten Schema `cloud_private`, öffentliche Wrapper sind Security Invoker. Storage erlaubt nur neue reservierte Pfade; keine Browser-Policies für Lesen, Ersetzen oder Löschen.
 
 Performance-INFO zu [nicht indexierten Fremdschlüsseln](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys) und erwartbar unbenutzten neuen Indizes bleibt für den kleinen Testbestand dokumentiert; keine Performance-Probleme oder Warnungen festgestellt.
 

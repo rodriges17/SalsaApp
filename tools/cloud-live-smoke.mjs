@@ -15,6 +15,7 @@ const call = async (action,payload={},token=admin) => {
 };
 let privateId,publicId,figure,job,userToken,passed=false;
 try {
+ await call('admin_limit',{bytes:900000000});
  await call('admin_user',{email,enabled:false,quota:100000000});
  const link=await call('admin_link',{email}),u=new URL(link.link);
  const auth=await fetch(CLOUD_URL+'/auth/v1/verify',{method:'POST',headers:{apikey:CLOUD_KEY,'Content-Type':'application/json'},body:JSON.stringify({token_hash:u.searchParams.get('token_hash'),type:'magiclink'})});const user=await auth.json();assert.equal(auth.status,200);userToken=user.access_token;
