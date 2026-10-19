@@ -1,3 +1,4 @@
+const APP_VERSION = '2026-10-19-sharing-v3';
 import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
 import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports } from './storage.js';
@@ -307,14 +308,17 @@ $('persistStorage').onclick = async () => {
   catch { $('persistenceResult').textContent = 'Dieser Browser unterstützt die Speicheranfrage nicht.'; }
 };
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(() => {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => {
+    const update = () => { if (navigator.onLine) registration.update().catch(() => {}); };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) update(); });
+    window.addEventListener('online', update);
+    return navigator.serviceWorker.ready;
+  }).then(() => {
     offlineReady = true; $('offlineStatus').textContent = 'Offline bereit · lokal gespeichert';
   }).catch(() => { $('offlineStatus').textContent = 'Offline-Vorbereitung fehlgeschlagen · bitte online neu laden'; });
 }
 window.addEventListener('offline', () => toast('Du bist offline. Deine gespeicherten Videos bleiben verfügbar.'));
 renderFilters();
-try { await cleanupInterruptedImports(); } catch { /* The initial refresh reports unavailable storage. */ }
-await refresh();
 
 // Keep the fixed save footer above the iOS software keyboard where Visual Viewport is available.
 function updateViewport() { document.documentElement.style.setProperty('--app-height', `${window.visualViewport?.height ?? innerHeight}px`); }
@@ -383,12 +387,16 @@ $('sendPackage').onclick = async () => {
   try { await navigator.share({ files: [sharing.file] }); }
   catch (error) { if (error.name !== 'AbortError') setError('shareError', 'Direktes Teilen ist nicht möglich. Bitte ZIP speichern und in WhatsApp als Dokument anhängen.'); }
 };
-$('importFigure').onclick = () => { if (!editor && !opening && !packageImport) { $('packageFile').value = ''; $('packageFile').click(); } };
+$('importFigure').onclick = () => {
+  if (editor || opening || packageImport) { toast('Bitte zuerst den aktuellen Vorgang beenden.'); return; }
+  $('packageFile').value = ''; $('importChoiceDialog').showModal();
+};
+$('closeImportChoice').onclick = () => $('importChoiceDialog').close();
 $('cancelImport').onclick = () => { packageImport?.abort(); packageImport = null; $('importProgressDialog').close(); };
 $('importProgressDialog').addEventListener('cancel', event => { event.preventDefault(); $('cancelImport').click(); });
 $('packageFile').onchange = async () => {
   const file = $('packageFile').files[0]; if (!file || editor || opening || packageImport) return;
-  const controller = new AbortController(); packageImport = controller; $('importProgressDialog').showModal();
+  const controller = new AbortController(); packageImport = controller; $('importChoiceDialog').close(); $('importProgressDialog').showModal();
   try {
     const imported = await importFigure(file, controller.signal);
     if (packageImport !== controller) return;
@@ -409,3 +417,22 @@ $('packageFile').onchange = async () => {
     if (packageImport === controller) { packageImport = null; $('importProgressDialog').close(); $('packageFile').value = ''; }
   }
 };
+
+// Register interaction handlers before storage recovery, which may wait for another tab.
+$('appVersion').textContent = `Version ${APP_VERSION}`;
+document.documentElement.dataset.appVersion = APP_VERSION;
+if ('serviceWorker' in navigator) {
+  let controlled = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (controlled) $('updateNotice').hidden = false;
+    controlled = true;
+  });
+}
+$('applyUpdate').onclick = () => {
+  if (editor || preview || learning || sharing || packageImport || $('importChoiceDialog').open) {
+    toast('Bitte zuerst den aktuellen Vorgang beenden und zur Übersicht zurückkehren.'); return;
+  }
+  location.reload();
+};
+try { await cleanupInterruptedImports(); } catch { /* Refresh reports unavailable storage. */ }
+await refresh();

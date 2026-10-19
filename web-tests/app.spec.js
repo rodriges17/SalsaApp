@@ -156,7 +156,10 @@ async function exportPackage(page, info, subset = false) {
 async function choosePackage(page, file) {
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
-    page.getByRole('button', { name: 'Figur importieren', exact: true }).click()
+    page.getByRole('button', { name: 'Figur importieren', exact: true }).tap().then(async () => {
+      await expect(page.locator('#importChoiceDialog')).toBeVisible();
+      await page.locator('#packageFile').tap();
+    })
   ]);
   await chooser.setFiles(file);
 }
@@ -212,4 +215,55 @@ test('ZIP share uses a prepared file and keeps download available when native sh
   await expect(page.locator('#sendPackage')).toBeVisible(); await page.locator('#sendPackage').click();
   await expect(page.locator('#shareError')).toContainText('als Dokument'); await expect(page.locator('#downloadPackage')).toBeVisible();
   expect(await page.evaluate(() => window.sharedFile)).toEqual({ name: 'Ocho.zip', type: 'application/zip' });
+});
+
+test('touch import works after cancel, keyboard editing and returning from the player', async ({ page }, info) => {
+  await start(page);
+  await page.getByRole('button', { name: 'Figur importieren', exact: true }).tap();
+  await expect(page.locator('#importChoiceDialog')).toBeVisible();
+  await expect(page.locator('#packageFile')).toBeVisible();
+  await page.locator('#closeImportChoice').tap();
+  await expect(page.locator('#importChoiceDialog')).not.toBeVisible();
+  await addFigure(page); const file = await exportPackage(page, info);
+  await openEdit(page); await page.locator('#figureDescription').fill('Keyboard edit');
+  await page.locator('#editorBack').tap(); await page.locator('#confirmOK').tap();
+  await expect(page.locator('#editor')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Ocho lernen' }).tap();
+  await expect(page.locator('#learningVideo')).toHaveJSProperty('videoWidth', 320);
+  await page.locator('#playerBack').tap();
+  await choosePackage(page, file); await confirmImported(page, 2);
+  await expect(page.locator('.figure-card')).toHaveCount(2);
+});
+
+test('installed shell update bypasses stale HTTP CSS and preserves offline videos', async ({ page, context }, info) => {
+  const id = `${info.project.name}-${Date.now()}`, scope = `/upgrade/${id}/`;
+  await page.goto(scope);
+  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', 'qa-legacy-shell');
+  await expect(page.locator('#importFigure')).toHaveCSS('pointer-events', 'none');
+  await addFigure(page);
+  await page.request.post(`/__qa/upgrade/${id}`);
+  await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
+  await expect(page.locator('#updateNotice')).toBeVisible();
+  // An update must not throw away a draft. It is applied from the overview.
+  await page.locator('#addFigure').tap(); await page.locator('#figureTitle').fill('Keep my draft');
+  await page.evaluate(() => document.getElementById('applyUpdate').click());
+  await expect(page.locator('#figureTitle')).toHaveValue('Keep my draft');
+  await page.locator('#editorBack').tap(); await page.locator('#confirmOK').tap();
+  await expect(page.locator('#editor')).not.toBeVisible();
+  await page.locator('#applyUpdate').tap();
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-19-sharing-v3');
+  await expect(page.locator('#importFigure')).toHaveCSS('pointer-events', 'auto');
+  await expect(page.locator('.figure-card')).toHaveCount(1);
+  const file = await exportPackage(page, info);
+  await context.setOffline(true); await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-19-sharing-v3');
+  await page.getByRole('button', { name: 'Ocho lernen' }).tap();
+  await expect(page.locator('#learningVideo')).toHaveJSProperty('videoWidth', 320);
+  await page.locator('#playPause').tap();
+  await expect.poll(() => page.locator('#learningVideo').evaluate(v => v.currentTime)).toBeGreaterThan(0.1);
+  await page.locator('#playerBack').tap();
+  await choosePackage(page, file); await confirmImported(page, 2);
+  await expect(page.locator('.figure-card')).toHaveCount(2);
 });
