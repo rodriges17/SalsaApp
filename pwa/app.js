@@ -1,4 +1,4 @@
-const APP_VERSION = '2026-10-22-local-parity-v1';
+const APP_VERSION = '2026-10-22-local-settings-header-v1';
 import { initBackup } from './backup-ui.js';
 import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
 import { checksum } from './package.js';

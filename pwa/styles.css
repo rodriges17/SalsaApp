@@ -153,3 +153,8 @@ html,body{touch-action:pan-x pan-y}
 .bottom-nav button{min-height:48px;gap:2px;padding:3px}
 .card-menu{position:fixed;z-index:7;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain}
 .card-menu button{max-width:100%;overflow-wrap:anywhere}
+
+/* Keep the app brand and settings navigation visible during options scrolling. */
+.settings-screen{--settings-gutter:max(20px,calc((100vw - 680px)/2));scroll-padding-top:calc(var(--brand-header-height,73px) + 90px)}
+.settings-brand-header{position:sticky;top:0;z-index:4;flex-shrink:0;margin:0 calc(-1 * var(--settings-gutter));padding:calc(16px + env(safe-area-inset-top)) var(--settings-gutter) 12px;background:var(--surface);border-bottom:1px solid var(--border)}
+.settings-heading{top:var(--brand-header-height,73px);z-index:3;padding-top:14px}
