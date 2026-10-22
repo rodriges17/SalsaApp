@@ -123,5 +123,5 @@ Bundle-IDs noch Signierungsprofile sind bislang für dieses Projekt eingerichtet
   Diese Punkte benötigen eigene Implementierung und Gerätetests; der Simulator-Build
   ist kein Nachweis vollständiger PWA-Parität.
 
-Die vorhandene `pwa/` in diesem Repo bleibt als ältere, eigenständige PWA erhalten.
-Aktuelle Web-Entwicklung erfolgt in https://github.com/rodriges17/SalsaAppCloud.
+Die `pwa/` in diesem Repo ist die aktuelle lokale Variante ohne Cloud-Speicher.
+Die Cloud-Variante liegt in https://github.com/rodriges17/SalsaAppCloud.

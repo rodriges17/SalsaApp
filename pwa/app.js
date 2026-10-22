@@ -1,7 +1,9 @@
-const APP_VERSION = '2026-10-22-delete-location-v1';
+const APP_VERSION = '2026-10-22-local-parity-v1';
+import { initBackup } from './backup-ui.js';
 import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
+import { checksum } from './package.js';
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
-import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports } from './storage.js';
+import { listFigures, figureVideos, playerVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports, folderSupported, storageSettings, chooseFolder, connectFolder, allowFolderAccess, setStorageFolder, transferFigure } from './storage.js';
 
 const $ = id => document.getElementById(id);
 const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
@@ -9,19 +11,25 @@ const button = (text, action, className = '') => { const node = el('button', cla
 let figures = [], statusFilter = '', selectedTag = '', editor = null, preview = null, learning = null;
 let route = 'home', opening = false, toastTimer, reviewNext = false;
 let posterURLs = [], videoURL = null, previewURL = null;
-const channel = 'BroadcastChannel' in window ? new BroadcastChannel('salsa-trainer-library') : null;
+const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`salsa-trainer-library:${new URL('./', import.meta.url).pathname}`) : null;
 const loop = new ABLoop();
 let playIntent = false, wakeLock = null;
 const video = $('learningVideo');
+const heading = document.querySelector('.overview > .heading');
+if (heading && 'ResizeObserver' in window) {
+  const measure = () => document.documentElement.style.setProperty('--brand-header-height', `${heading.getBoundingClientRect().height}px`);
+  new ResizeObserver(measure).observe(heading); measure();
+}
 
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4500); }
 function setError(id, message) { $(id).textContent = message ?? ''; $(id).hidden = !message; }
 function pushRoute(view) { route = view; history.pushState({ salsa: true, view }, '', `#${view === 'editor' ? 'figur' : view === 'preview' ? 'vorschau' : 'lernen'}`); }
 history.replaceState({ salsa: true, view: 'home' }, '', location.pathname + location.search);
 
-function confirmAction({ title, message = '', ok = 'Bestätigen', cancel = 'Abbrechen' }) {
+function confirmAction({ title, message = '', ok = 'Bestätigen', cancel = 'Abbrechen', destructive = false }) {
   if ($('confirmDialog').open) return Promise.resolve(false);
   $('confirmTitle').textContent = title; $('confirmMessage').textContent = message;
+  $('confirmOK').classList.toggle('danger-button', destructive);
   $('confirmOK').textContent = ok; $('confirmCancel').textContent = cancel;
   return new Promise(resolve => {
     const finish = value => { $('confirmDialog').close(); $('confirmOK').onclick = null; $('confirmCancel').onclick = null; $('confirmDialog').oncancel = null; resolve(value); };
@@ -30,6 +38,23 @@ function confirmAction({ title, message = '', ok = 'Bestätigen', cancel = 'Abbr
     $('confirmDialog').showModal(); $('confirmCancel').focus();
   });
 }
+function placeFigureMenu(menu, anchor) {
+  const margin = 8;
+  const header = document.querySelector('.page-intro')?.getBoundingClientRect();
+  const footer = document.querySelector('body > .bottom-nav')?.getBoundingClientRect();
+  const top = Math.max(margin, (header?.bottom ?? 0) + margin);
+  const bottom = Math.min(window.innerHeight, footer?.top ?? window.innerHeight) - margin;
+  menu.style.maxHeight = `${Math.max(44, bottom - top)}px`;
+  const size = menu.getBoundingClientRect();
+  const trigger = anchor.getBoundingClientRect();
+  const below = trigger.bottom + margin;
+  const y = below + size.height <= bottom ? below : trigger.top - size.height - margin;
+  menu.style.top = `${Math.max(top, Math.min(y, bottom - size.height))}px`;
+  menu.style.left = `${Math.max(margin, Math.min(trigger.right - size.width, window.innerWidth - size.width - margin))}px`;
+  menu.style.right = 'auto';
+}
+window.addEventListener('scroll', () => closeMenus(), { passive: true });
+window.addEventListener('resize', () => closeMenus());
 function closeMenus() { document.querySelectorAll('.card-menu').forEach(n => n.remove()); document.querySelectorAll('.card-options').forEach(n => n.setAttribute('aria-expanded', 'false')); }
 async function refresh() {
   try { figures = await listFigures(); renderOverview(); }
@@ -49,26 +74,42 @@ function renderOverview() {
     let thumb;
     if (figure.poster) { const url = URL.createObjectURL(figure.poster); posterURLs.push(url); thumb = el('img', 'card-thumb'); thumb.src = url; thumb.alt = ''; }
     else { thumb = el('span', 'card-thumb thumb-placeholder', '▷'); thumb.setAttribute('aria-hidden', 'true'); }
-    const copy = el('span', 'card-copy'); copy.append(el('span', 'card-title', figure.title), el('span', 'card-status', figure.status));
+    const copy = el('span', 'card-copy'); copy.append(el('span', 'card-title', figure.title), el('span', 'card-status status-' + (figure.status === 'Sitzt' ? 'learned' : figure.status === 'Am Üben' ? 'practice' : 'new'), figure.status));
     if (figure.tags.length) copy.append(el('span', 'card-tags', figure.tags.join(' · ')));
+    if (figure.storageFolder) copy.append(el('span', 'card-meta', figure.folderAccessRequired ? 'Ordner gespeichert – Zugriff erneut erlauben' : figure.storageProblem ? `Geräteordner: ${figure.storageProblem}` : `Geräteordner · ${figure.folderName || 'SalsaTrainer'}`));
     copy.append(el('span', 'card-meta', `${timeLabel(figure.duration)} · ${figure.videoIds.length} Video${figure.videoIds.length === 1 ? '' : 's'}`)); main.append(thumb, copy);
     const options = button('⋮', event => { event.stopPropagation(); const wasOpen = options.getAttribute('aria-expanded') === 'true'; closeMenus(); if (!wasOpen) showMenu(); }, 'card-options');
     options.setAttribute('aria-label', `Optionen für ${figure.title}`); options.setAttribute('aria-expanded', 'false');
     function showMenu() {
       options.setAttribute('aria-expanded', 'true'); const menu = el('div', 'card-menu');
       menu.append(button('Figur teilen', () => { closeMenus(); openShare(figure); }), button('Bearbeiten', () => { closeMenus(); openEditor(figure); }), button('Löschen', async () => {
-        closeMenus(); const accepted = await confirmAction({ title: `„${figure.title}“ löschen?`, message: 'Die Figur und ihre zugehörigen Videos werden aus dem App-Speicher gelöscht. Deine ursprünglichen Importdateien bleiben erhalten.', ok: 'Löschen' });
+        closeMenus(); const accepted = await confirmAction({ title: `„${figure.title}“ löschen?`, message: (figure.storageFolder ? 'Die Figur und ihre zugehörigen Videos werden aus dem verknüpften Geräteordner gelöscht.' : 'Die Figur und ihre zugehörigen Videos werden aus dem App-Speicher gelöscht.') + ' Deine ursprünglichen Importdateien bleiben erhalten.', ok: 'Löschen' });
         if (accepted) { try { await deleteFigure(figure); changed(); await refresh(); toast('Figur gelöscht.'); } catch (error) { toast(storageMessage(error)); await refresh(); } }
-      }, 'danger')); card.append(menu);
+      }, 'danger'));
+      if (figure.storageFolder || folderSupported()) menu.append(button(figure.storageFolder ? 'In App-Speicher übertragen' : 'In Geräteordner übertragen', () => { closeMenus(); moveFigure(figure); }));
+      card.append(menu);
+      placeFigureMenu(menu, options);
     }
     main.addEventListener('contextmenu', event => { event.preventDefault(); closeMenus(); showMenu(); });
-    card.append(main, options); $('figureList').append(card);
+    card.append(main, options);
+    if (figure.folderAccessRequired && folderSupported()) {
+      card.classList.add('needs-folder-access');
+      const allow = button('Ordnerzugriff erlauben', async () => {
+        if (deviceBusy) return;
+        deviceBusy = true; allow.disabled = true; allow.textContent = 'Zugriff wird angefragt …';
+        try { await allowFolderAccess(figure.storageFolder); changed(); await refresh(); toast('Ordnerzugriff erlaubt. Die Figuren sind wieder verfügbar.'); }
+        catch (error) { toast(storageMessage(error)); }
+        finally { deviceBusy = false; allow.disabled = false; allow.textContent = 'Ordnerzugriff erlauben'; }
+      }, 'secondary folder-access-action');
+      allow.setAttribute('aria-label', `Ordnerzugriff erlauben für ${figure.title}`); card.append(allow);
+    }
+    $('figureList').append(card);
   }
 }
 function renderFilters() {
   $('statusFilters').replaceChildren();
   for (const value of ['', ...STATUSES]) {
-    const node = button(value || 'Alle Lernstände', () => { statusFilter = value; renderFilters(); renderOverview(); });
+    const node = button(value || 'Alle', () => { statusFilter = value; renderFilters(); renderOverview(); });
     node.setAttribute('aria-pressed', String(value === statusFilter)); $('statusFilters').append(node);
   }
 }
@@ -92,8 +133,8 @@ function isDirty() { return editor && (JSON.stringify(formValue()) !== editor.in
 async function openEditor(figure = null, imported = null) {
   if (opening || editor || learning) return; opening = true;
   try {
-    const records = figure ? await figureVideos(figure) : [];
-    editor = { id: figure?.id ?? crypto.randomUUID(), revision: figure?.revision ?? null, drafts: records.map(r => ({ ...r, existing: true, confirmed: true })), busy: false, allowClose: false, replacing: null, reviewAll: false };
+    const records = figure ? await figureVideos(figure, true) : [];
+    editor = { id: figure?.id ?? crypto.randomUUID(), revision: figure?.revision ?? null, storageFolder: figure?.storageFolder, drafts: records.map(r => ({ ...r, existing: !r.missing, confirmed: !r.missing })), busy: false, allowClose: false, replacing: null, reviewAll: false };
     $('figureTitle').value = figure?.title ?? ''; $('figureDescription').value = figure?.description ?? '';
     $('figureStatus').value = figure?.status ?? 'Neu'; $('figureTags').value = figure?.tags.join(', ') ?? '';
     editor.initialForm = JSON.stringify(formValue()); editor.initialDrafts = draftSignature(editor.drafts);
@@ -108,7 +149,17 @@ async function openEditor(figure = null, imported = null) {
     renderDrafts(); setBusy(false); $('editor').showModal(); pushRoute('editor'); $('figureTitle').focus();
   } catch (error) { toast(storageMessage(error)); } finally { opening = false; }
 }
-$('addFigure').onclick = () => openEditor();
+$('openAddFigure').onclick = () => $('addChoiceDialog').showModal();
+$('closeAddChoice').onclick = () => $('addChoiceDialog').close();
+$('addChoiceDialog').addEventListener('close', () => {
+  if (!opening && !editor && !$('importChoiceDialog').open) $('openAddFigure').focus({ preventScroll: true });
+});
+$('addChoiceDialog').addEventListener('click', event => {
+  if (event.target !== $('addChoiceDialog')) return;
+  const rect = $('addChoiceDialog').getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('addChoiceDialog').close();
+});
+$('addFigure').onclick = () => { $('addChoiceDialog').close(); openEditor(); };
 function updateSave() { $('saveFigure').disabled = !editor || editor.busy || !$('figureTitle').value.trim() || !editor.drafts.length || editor.drafts.some(d => !d.confirmed); }
 function setBusy(value) { editor.busy = value; $('editorFields').disabled = value; $('editorBack').disabled = value; $('saveProgress').hidden = !value; updateSave(); }
 $('editorForm').addEventListener('input', updateSave);
@@ -134,24 +185,25 @@ function renderDrafts() {
     const card = el('div', 'draft-card'); card.dataset.videoId = draft.id;
     const input = el('input'); input.value = draft.name; input.placeholder = 'Videoname (optional)'; input.maxLength = 160; input.setAttribute('aria-label', `Name von Video ${index + 1}`);
     input.addEventListener('input', () => { draft.name = input.value; });
-    const note = el('p', `draft-status${draft.confirmed ? ' confirmed' : ''}`, draft.confirmed ? 'Bestätigt' : 'Vorschau erforderlich');
+    const note = el('p', `draft-status${draft.confirmed ? ' confirmed' : ''}`, draft.missing ? 'Datei fehlt oder wurde verändert – bitte ersetzen' : draft.confirmed ? 'Bestätigt' : 'Vorschau erforderlich');
     const actions = el('div', 'draft-actions');
-    actions.append(button('Vorschau', () => { editor.reviewAll = false; openPreview(draft); }), button('Ersetzen', () => chooseFiles(draft.id)));
+    const previewButton = button('Vorschau', () => { editor.reviewAll = false; openPreview(draft); }); previewButton.disabled = !!draft.missing;
+    actions.append(previewButton, button('Ersetzen', () => chooseFiles(draft.id)));
     const up = button('↑', () => { [editor.drafts[index - 1], editor.drafts[index]] = [editor.drafts[index], editor.drafts[index - 1]]; renderDrafts(); }); up.disabled = index === 0; up.setAttribute('aria-label', `Video ${index + 1} nach oben`);
     const down = button('↓', () => { [editor.drafts[index + 1], editor.drafts[index]] = [editor.drafts[index], editor.drafts[index + 1]]; renderDrafts(); }); down.disabled = index === editor.drafts.length - 1; down.setAttribute('aria-label', `Video ${index + 1} nach unten`);
     const remove = button('Entfernen', () => { editor.drafts.splice(index, 1); renderDrafts(); }, 'danger'); remove.disabled = editor.drafts.length <= 1;
     actions.append(up, down, remove); card.append(input, note, actions); $('draftVideos').append(card);
   });
-  $('reviewAll').hidden = !editor.drafts.some(d => !d.confirmed); updateSave();
+  $('reviewAll').hidden = !editor.drafts.some(d => !d.confirmed && !d.missing); updateSave();
 }
-$('reviewAll').onclick = () => { editor.reviewAll = true; const draft = editor.drafts.find(d => !d.confirmed); if (draft) openPreview(draft); };
+$('reviewAll').onclick = () => { editor.reviewAll = true; const draft = editor.drafts.find(d => !d.confirmed && !d.missing); if (draft) openPreview(draft); };
 $('editorBack').onclick = () => history.back();
 $('editor').addEventListener('cancel', event => { event.preventDefault(); history.back(); });
 $('editorForm').addEventListener('submit', async event => {
   event.preventDefault(); if (!editor || editor.busy || $('saveFigure').disabled) return;
   const active = editor; setError('editorError', null); setBusy(true);
   try {
-    await saveFigure({ id: active.id, ...formValue(), importFingerprint: active.importFingerprint }, active.drafts, active.revision);
+    await saveFigure({ id: active.id, ...formValue(), importFingerprint: active.importFingerprint, storageFolder: active.storageFolder }, active.drafts, active.revision);
     changed(); await refresh();
     if (editor === active) { active.allowClose = true; setBusy(false); history.back(); toast('Figur lokal gespeichert.'); }
   } catch (error) { if (editor === active) { setBusy(false); setError('editorError', storageMessage(error)); } }
@@ -199,7 +251,7 @@ window.addEventListener('popstate', async event => {
     const accepted = preview?.accepted; cleanupPreview(); route = target;
     if (!accepted && editor) editor.reviewAll = false;
     if (target === 'editor') {
-      if (reviewNext && accepted && editor) { reviewNext = false; const next = editor.drafts.find(d => !d.confirmed); if (next) setTimeout(() => { if (editor && route === 'editor') openPreview(next); }, 0); else editor.reviewAll = false; }
+      if (reviewNext && accepted && editor) { reviewNext = false; const next = editor.drafts.find(d => !d.confirmed && !d.missing); if (next) setTimeout(() => { if (editor && route === 'editor') openPreview(next); }, 0); else editor.reviewAll = false; }
       return;
     }
   }
@@ -220,7 +272,7 @@ window.addEventListener('beforeunload', event => { if (editor && (editor.busy ||
 async function openPlayer(figure) {
   if (opening || editor || learning) return; opening = true;
   try {
-    const records = await figureVideos(figure);
+    const records = await playerVideos(figure);
     learning = { figure, records, index: 0, crop: false, landscape: false, fullLoop: false, speed: 1 };
     loop.clear(); $('playerTitle').textContent = figure.title; $('playerDescription').textContent = figure.description;
     $('playerVideoChoice').replaceChildren(); records.forEach((record, index) => { const option = el('option', '', record.name || `Video ${index + 1}`); option.value = String(index); $('playerVideoChoice').append(option); });
@@ -229,14 +281,30 @@ async function openPlayer(figure) {
     pushRoute('player'); loadPlayerVideo(0, false); $('playerBack').focus();
   } catch (error) { toast(storageMessage(error)); } finally { opening = false; }
 }
-function loadPlayerVideo(index, autoplay) {
+let playerLoad = 0;
+async function loadPlayerVideo(index, autoplay) {
   if (!learning?.records[index]) return;
+  const active = learning, request = ++playerLoad, record = active.records[index];
   playIntent = autoplay; video.pause(); releaseWakeLock();
   if (videoURL) { video.removeAttribute('src'); video.load(); releaseURL(videoURL); }
   learning.index = index; $('playerVideoChoice').value = String(index); loop.clear(); updateLoop(); setError('playerError', null); $('videoLoading').hidden = false;
   $('seek').value = '0'; $('position').textContent = '0:00'; $('duration').textContent = timeLabel(learning.records[index].duration);
-  videoURL = URL.createObjectURL(learning.records[index].blob); video.src = videoURL; video.playbackRate = learning.speed; video.load();
   $('playPause').textContent = '▶'; $('playPause').setAttribute('aria-label', 'Abspielen');
+  try {
+    if (!record.blob) {
+      record.pending ??= record.load();
+      const loaded = await record.pending;
+      record.blob = loaded.blob;
+      record.pending = null;
+    }
+    if (learning !== active || request !== playerLoad) return;
+    videoURL = URL.createObjectURL(record.blob); video.src = videoURL; video.playbackRate = active.speed; video.load();
+  } catch (error) {
+    record.pending = null;
+    if (learning !== active || request !== playerLoad) return;
+    playIntent = false; $('videoLoading').hidden = true;
+    setError('playerError', storageMessage(error));
+  }
 }
 video.addEventListener('loadedmetadata', () => { if (!learning) return; if (!Number.isFinite(video.duration) || video.duration <= 0) { setError('playerError', 'Das Video konnte nicht geladen werden.'); return; } $('seek').max = String(video.duration); $('duration').textContent = timeLabel(video.duration); video.playbackRate = learning.speed; });
 video.addEventListener('loadeddata', () => { $('videoLoading').hidden = true; if (learning && playIntent && !document.hidden) play(); });
@@ -285,6 +353,7 @@ $('playerVideoChoice').onchange = () => { if (learning) loadPlayerVideo(Number($
 $('fullscreen').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else if ($('playerScreen').requestFullscreen) await $('playerScreen').requestFullscreen(); else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); else toast('Diese Ansicht nutzt bereits die verfügbare Displayfläche.'); } catch { toast('Vollbild wird von diesem Browser nicht freigegeben.'); } };
 $('playerBack').onclick = () => history.back();
 function closePlayer() {
+  ++playerLoad;
   pause(); video.removeAttribute('src'); video.load(); releaseURL(videoURL); videoURL = null; learning = null; loop.clear();
   $('playerScreen').hidden = true; $('overview').hidden = false; $('overview').inert = false; document.body.classList.remove('playing-screen');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); if (video.webkitDisplayingFullscreen) video.webkitExitFullscreen();
@@ -293,21 +362,84 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { pau
 window.addEventListener('pagehide', () => { pause(); previewVideo.pause(); });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && learning && !document.fullscreenElement) { event.preventDefault(); history.back(); } });
 
+
+let deviceBusy = false;
+async function deviceWork(work) {
+  if (deviceBusy) return; deviceBusy = true; $('closeInfo').disabled = true; $('closeInfoTop').disabled = true;
+  $('deviceStorageStatus').textContent = 'Bitte warten …';
+  $('deviceStorageControls').inert = true;
+  try { await work(); changed(); await refresh(); await renderDeviceStorage(); $('deviceStorageStatus').textContent = 'Gespeichert.'; }
+  catch (e) { $('deviceStorageStatus').textContent = storageMessage(e); }
+  finally { deviceBusy = false; $('closeInfo').disabled = false; $('closeInfoTop').disabled = false; $('deviceStorageControls').inert = false; }
+}
+async function renderDeviceStorage() {
+  const settings = await storageSettings(), controls = $('deviceStorageControls'); controls.replaceChildren();
+  const selected = settings.folders.find(f => f.id === settings.activeFolder);
+  $('deviceStorageActive').textContent = `Neue Figuren: ${selected ? 'Geräteordner „' + selected.name + '“' : 'App-Speicher'}. Vorhandene Figuren bleiben an ihrem bisherigen Speicherort.`;
+  controls.append(button('App-Speicher verwenden', () => deviceWork(() => setStorageFolder(null)), 'secondary'));
+  if (settings.supported) {
+    controls.append(button('Geräteordner auswählen', async () => {
+      // Open the OS picker directly in the click handler, before any other async work.
+      let candidate; try { candidate = await chooseFolder(); } catch (e) { if (e.name !== 'AbortError') $('deviceStorageStatus').textContent = storageMessage(e); return; }
+      const count = candidate.figureCount;
+      if (!await confirmAction({ title: count ? 'Bibliotheksordner öffnen?' : 'Geräteordner verwenden?', message: `„${candidate.name}“ enthält ${count} Figuren. Videos, Angaben und Lernstände werden eingelesen. Neue Figuren werden hier gespeichert. Vorhandene App-Figuren werden nicht verschoben.`, ok: count ? 'Bibliothek öffnen' : 'Ordner verwenden' })) return;
+      await deviceWork(() => connectFolder(candidate));
+    }, 'secondary'));
+  } else controls.append(el('p', 'muted', 'Geräteordner werden in diesem Browser nicht unterstützt. Verwende aktuelles Chrome auf Android oder Desktop. Auf iPhone/Safari bleibt der App-Speicher mit ZIP-Sicherung verfügbar.'));
+  for (const folder of settings.folders) {
+    const row = el('div', 'cloud-card'); row.append(el('strong', '', `${folder.name} · ${folder.figureCount} Figuren${folder.id === settings.activeFolder ? ' · aktiv' : ''}`));
+    if (settings.supported) row.append(button('Ordnerzugriff erlauben', () => deviceWork(() => allowFolderAccess(folder.id)), 'secondary'), button('Für neue Figuren verwenden', () => deviceWork(async () => { await allowFolderAccess(folder.id); await setStorageFolder(folder.id); }), 'secondary'));
+    if (folder.pendingCleanup) row.append(el('p', 'error', 'Dateibereinigung ausstehend. Sie wird beim nächsten Speichern oder Löschen erneut versucht.'));
+    controls.append(row);
+  }
+}
+async function moveFigure(figure) {
+  if (opening || editor || learning) return; opening = true;
+  try {
+    const settings = await storageSettings();
+    let target = null;
+    if (!figure.storageFolder) {
+      if (!folderSupported()) throw new Error('Geräteordner werden hier nicht unterstützt. Bitte aktuelles Chrome auf Android oder Desktop verwenden.');
+      target = settings.activeFolder ?? settings.folders[0]?.id;
+      if (!target) { await storageInfo(); showInfoDialog(); toast('Bitte zuerst unter Speicherort einen Geräteordner auswählen.'); return; }
+    }
+    const destination = target ? settings.folders.find(f => f.id === target)?.name : 'App-Speicher';
+    if (!await confirmAction({ title: 'Figur übertragen?', message: `„${figure.title}“ nach „${destination}“ kopieren und prüfen? Die bisherige Kopie bleibt zunächst erhalten.`, ok: 'Kopieren und prüfen' })) return;
+    toast('Figur wird kopiert und geprüft …');
+    await transferFigure(figure, target);
+    await refresh(); changed();
+    if (await confirmAction({ title: 'Kopie erfolgreich geprüft', message: 'Die neue Kopie ist gespeichert. Sollen die bisherigen verwalteten Videos und Angaben dieser Figur am alten Speicherort jetzt entfernt werden? Ursprüngliche Importdateien bleiben erhalten.', ok: 'Bisherige Kopie entfernen', cancel: 'Beide behalten' })) await deleteFigure(figure);
+    changed(); await refresh(); toast('Übertragung abgeschlossen.');
+  } catch (e) { toast(storageMessage(e)); await refresh(); }
+  finally { opening = false; }
+}
+
 let offlineReady = false;
 async function storageInfo() {
   try {
     const estimate = await navigator.storage?.estimate?.(); const persistent = await navigator.storage?.persisted?.();
     $('storageDetails').textContent = `${estimate ? `Ungefähr ${Math.round((estimate.usage ?? 0) / 1048576)} MB lokal belegt. ` : ''}${persistent ? 'Der Browser hat dauerhaften Speicher gewährt.' : 'Dauerhafter Speicher ist bisher nicht bestätigt.'}`;
   } catch { $('storageDetails').textContent = 'Der Browser kann keine Speicherinformationen anzeigen.'; }
+  try { await renderDeviceStorage(); } catch (e) { $('deviceStorageStatus').textContent = storageMessage(e); }
   $('offlineDetails').textContent = offlineReady ? 'Die App ist für Offline-Aufrufe bereit. Gespeicherte Videos funktionieren ohne Netz.' : 'Bitte die App einmal online laden und warten, bis „Offline bereit“ angezeigt wird.';
 }
-$('infoButton').onclick = () => { storageInfo(); $('infoDialog').showModal(); };
+function showInfoDialog() {
+  const dialog = $('infoDialog');
+  dialog.showModal();
+  $('infoTitle').focus({ preventScroll: true });
+  dialog.scrollTop = 0;
+}
+$('infoButton').onclick = () => { $('themeChoice').value = window.stepAppearance.get(); storageInfo(); showInfoDialog(); };
+$('themeChoice').onchange = () => { $('themeStatus').textContent = window.stepAppearance.set($('themeChoice').value) ? 'Die Auswahl wird auf diesem Gerät gespeichert.' : 'Das Farbschema gilt für diesen Aufruf. Der Browser konnte die Auswahl nicht speichern.'; };
+$('closeInfoTop').onclick = () => { if (!deviceBusy) $('infoDialog').close(); };
 $('closeInfo').onclick = () => $('infoDialog').close();
+$('infoDialog').addEventListener('cancel', event => { if (deviceBusy) event.preventDefault(); });
 $('persistStorage').onclick = async () => {
   try { const granted = await navigator.storage?.persist?.(); $('persistenceResult').textContent = granted ? 'Dauerhafter Speicher wurde gewährt.' : 'Der Browser hat die Anfrage nicht bestätigt. Die App bleibt nutzbar. Auf dem Home-Bildschirm installierte Apps werden bevorzugt berücksichtigt.'; await storageInfo(); }
   catch { $('persistenceResult').textContent = 'Dieser Browser unterstützt die Speicheranfrage nicht.'; }
 };
 if ('serviceWorker' in navigator) {
+  $('offlineStatus').textContent = 'Offline-Nutzung wird vorbereitet …';
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => {
     const update = () => { if (navigator.onLine) registration.update().catch(() => {}); };
     document.addEventListener('visibilitychange', () => { if (!document.hidden) update(); });
@@ -389,7 +521,7 @@ $('sendPackage').onclick = async () => {
 };
 $('importFigure').onclick = () => {
   if (editor || opening || packageImport) { toast('Bitte zuerst den aktuellen Vorgang beenden.'); return; }
-  $('packageFile').value = ''; $('importChoiceDialog').showModal();
+  $('addChoiceDialog').close(); $('packageFile').value = ''; $('importChoiceDialog').showModal();
 };
 $('closeImportChoice').onclick = () => $('importChoiceDialog').close();
 $('cancelImport').onclick = () => { packageImport?.abort(); packageImport = null; $('importProgressDialog').close(); };
@@ -418,6 +550,8 @@ $('packageFile').onchange = async () => {
   }
 };
 
+initBackup({ confirm: confirmAction, changed, refresh });
+
 // Register interaction handlers before storage recovery, which may wait for another tab.
 $('appVersion').textContent = `Version ${APP_VERSION}`;
 document.documentElement.dataset.appVersion = APP_VERSION;
@@ -429,10 +563,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 $('applyUpdate').onclick = () => {
-  if (editor || preview || learning || sharing || packageImport || $('importChoiceDialog').open) {
+  if (editor || preview || learning || sharing || packageImport || $('addChoiceDialog').open || $('importChoiceDialog').open) {
     toast('Bitte zuerst den aktuellen Vorgang beenden und zur Übersicht zurückkehren.'); return;
   }
   location.reload();
 };
+document.querySelectorAll('[data-nav]').forEach(nav => {
+  nav.onclick = async () => {
+    if (nav.closest('#infoDialog')) { if (deviceBusy) return; $('infoDialog').close(); }
+    if (learning) { await new Promise(resolve => { window.addEventListener('popstate', resolve, { once: true }); history.back(); }); }
+    { window.scrollTo({ top: 0 }); $('search').focus({ preventScroll: true }); }
+  };
+});
 try { await cleanupInterruptedImports(); } catch { /* Refresh reports unavailable storage. */ }
 await refresh();

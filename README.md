@@ -15,47 +15,41 @@ keine auf einem iPhone installierbare Version. Die native Swift-App hat noch
 nicht den vollständigen Funktionsumfang der aktuellen SalsaAppCloud-PWA;
 die offenen Punkte sind im Einrichtungsdokument benannt.
 
-Die folgenden Abschnitte beschreiben die vorhandene native Basis und die ältere
-PWA-Kopie dieses Repos. Die aktuelle PWA wird in **SalsaAppCloud** entwickelt.
+Die folgenden Abschnitte beschreiben die lokale PWA und die native iOS-Basis.
+Die Variante mit Cloud-Speicher wird in **SalsaAppCloud** entwickelt.
 
-## PWA auf iPhone oder Android
+## Lokale PWA: aktueller Stand ohne Cloud-Speicher
 
-Die Web-App liegt im Ordner `pwa/` und wird durch `.github/workflows/pwa.yml` nach bestandenen Tests auf **GitHub Pages** veröffentlicht.
+Adresse: **https://rodriges17.github.io/SalsaAppIOS/**
 
-Geplante Adresse: **https://rodriges17.github.io/SalsaAppIOS/**. Ob die Veröffentlichung bereits erfolgreich war, zeigt der Workflow „PWA tests and GitHub Pages“ unter Actions. Falls GitHub die erstmalige Pages-Aktivierung für den Workflow-Token verweigert: Repository → Settings → Pages → Build and deployment → Source → **GitHub Actions**, dann den Workflow erneut ausführen.
+Die PWA enthält die lokalen Funktionen der aktuellen SalsaAppCloud-Version:
+Figuren und mehrere Videos, Importvorschau, Suche/Tags/Lernstände, Sortierung,
+Lernplayer mit Geschwindigkeit, Fit/Crop, Hoch-/Queransicht, Gesamt-/A–B-Loop,
+ZIP-Austausch und vollständige Backups einschließlich Lernständen. In geeigneten
+Browsern können verwaltete Geräteordner verbunden und Figuren zwischen App-Speicher
+und Ordner übertragen werden. Videos werden beim Lernen erst bei Bedarf geladen.
 
-Auf dem iPhone den Link in Safari öffnen → Teilen → **Zum Home-Bildschirm** → als Web-App öffnen. Erst die installierte App über ihr Symbol starten und dort die Videos importieren. Dafür ist weder ein Mac noch Apple-Signierung erforderlich.
+UI: Step-by-Step-Logo im Titel und Figuren-Tab, Hell/Dunkel, feststehender Header,
+kompakte Navigation am unteren Rand, vollständig erreichbares Menü der letzten
+Figur, Zoom-Sperre und Speicherort-bezogener Löschhinweis. Cloud-Navigation,
+Anmeldung, Bibliotheken, Upload/Download und Backend-Konfiguration sind nicht enthalten.
+Die CSP erlaubt ausschließlich lokale App-Ressourcen und lokale Medien.
 
-### PWA-Funktionen
+Nach dem ersten Laden funktioniert die App offline. Auf iPhone/iPad über Safari
+→ Teilen → Zum Home-Bildschirm installieren. Frei wählbare Geräteordner hängen von
+Browserunterstützung und erteilten Berechtigungen ab; Chrome auf Android kann nach
+Sitzungsende erneut eine Freigabe verlangen. Interner Speicher und ausgewählte
+Geräteordner sind getrennte Speicherorte. Original-Importdateien bleiben erhalten.
 
-- Ursprüngliches dunkles Design, Suche über Name/Beschreibung/Tags, Lernstände, Tags und Sortierung.
-- Figuren erstellen, bearbeiten und löschen; mehrere lokale Videos mit Namen, Reihenfolge, Ersetzen und Entfernen. Das erste Video liefert Vorschaubild und Dauer.
-- Import über den Foto-/Dateiauswahldialog. Jedes neue Video muss vor dem Speichern in der abspielbaren Vorschau bestätigt werden. Abgebrochene Ersatzvideos ändern die bisherige Liste nicht.
-- Videos werden in einem separaten lokalen **Cache-Storage-Medienspeicher** abgelegt; Metadaten, Reihenfolge und Verweise werden anschließend in einer **IndexedDB-Transaktion** übernommen. Bei Quotenfehlern oder Konflikten werden neue Mediendateien verworfen; bisherige Dateien bleiben bis nach dem erfolgreichen Commit erhalten. Kleine Vorschaubilder werden als Binärpuffer gespeichert, um WebKits Einschränkung bei IndexedDB-Blobs zu vermeiden. Originaldateien werden nicht verändert.
-- Zurück-Buttons und Browser-Zurück mit Verwerfen-Dialog für ungespeicherte Änderungen. Während des Speicherns kann der Editor nicht verlassen werden.
-- Lernplayer mit Videowahl, 0,25×/0,5×/0,75×/1×, −5 Sekunden, Fit/Crop, Gesamtloop und A–B-Schleife. Videowechsel löscht A/B, behält die übrigen Einstellungen. Hintergrund und geschlossene Ansicht pausieren die Wiedergabe. Bildschirm-Wachhalten wird genutzt, sofern der Browser es anbietet.
-- Manueller Formatknopf dreht die **Player-Ansicht** im Hochformat um 90°. Die Systemausrichtung kann eine iPhone-PWA nicht zuverlässig sperren. Native Vollbildwiedergabe ist zusätzlich verfügbar, soweit der Browser sie unterstützt.
-- Service Worker speichert ausschließlich die App-Dateien. Nach „Offline bereit“ funktionieren Neustart und lokale Videowiedergabe ohne Netz. Keine Video-Uploads, Analytics, externen Fonts oder Server-Datenbank.
+Vorhandene lokale Figuren bleiben im bisherigen IndexedDB-/Mediencache-Namensraum;
+App-ID, URL und Scope bleiben gleich. Updates aktualisieren nur App-Dateien. Bei
+verfügbarer neuer Version **Update laden** wählen. Website-Daten löschen entfernt
+intern gespeicherte Figuren; regelmäßige vollständige Backups schützen die Daten.
 
-### PWA-Grenzen
-
-Die gespeicherten Videos bleiben nur in diesem Browser-/App-Speicher auf diesem Gerät. Website-Daten löschen entfernt die Kopien. Der Browser kann Speicherquoten setzen und nicht dauerhaft geschützte Daten bei Platzmangel löschen. Unter „Installation & Speicher“ lässt sich dauerhafter Speicher anfragen; die Entscheidung trifft der Browser. Es gibt kein Backup und keine automatische Übernahme der Android-/Swift-Bibliothek.
-
-Auf dem iPhone kann die PWA nicht als Empfangsziel für „Teilen“ registriert werden; Videos werden innerhalb der App importiert. Abspielbare Codecs hängen vom Browser ab (H.264/MP4 ist am breitesten unterstützt). Bei erzwungenem Beenden oder Neuladen gehen ungespeicherte Entwürfe verloren; die bisher gespeicherten Figuren bleiben erhalten. Safari und eine Home-Screen-App können getrennte Speicherbereiche verwenden – daher vor dem Import installieren.
-
-### PWA-Tests und Entwicklung
-
-Die App selbst hat keine Laufzeit-Abhängigkeiten und keinen Buildschritt. `npm test` führt Logiktests aus. Der CI-Workflow testet auf einem macOS-Runner mit nativer MP4-Unterstützung, installiert Playwright, erzeugt zwei synthetische H.264-Videos mit FFmpeg und testet Chrome/Chromium mit MP4-Unterstützung in Mobilansicht sowie WebKit/iPhone-Ansicht. Browser-Tests umfassen Mehrfachimport, Vorschauen, Player-Einstellungen, A/B-Steuerung, Formatwechsel, Offline-Neustart und -Wiedergabe, Umbenennen/Reihenfolge, verworfenen Ersatz, Mindestvideozahl, Verwerfen, Löschen, ungültige Medien und Transaktionskonflikte. Screenshots und Fehlertraces liegen im Actions-Artefakt `pwa-browser-results`.
-
-```sh
-npm install
-npm test
-# Für den manuellen Browseraufruf auf dem eigenen Rechner:
-python3 -m http.server 4173
-# http://localhost:4173/pwa/
-```
-
-Bei Änderungen an den App-Dateien die Versionskennung in `pwa/sw.js` erhöhen, damit installierte PWAs den neuen App-Cache erhalten. Gespeicherte Nutzervideos gehören niemals in den Git- oder Pages-Ordner.
+`npm test` prüft lokale Logik, Ordner, Austauschformat und Backup-Transaktionen.
+`npm run test:browser` prüft Chrome und WebKit, einschließlich Offline-Update mit
+bestehenden Medien, Geräteordner, Backup/Restore, Touch-Import, Zoom und UI.
+GitHub Actions veröffentlicht nach bestandenen Tests und prüft die Live-Seite.
 
 ---
 
@@ -107,7 +101,7 @@ Danach **ZIP teilen** wählen, wenn das Gerät Datei-Teilen unterstützt. WhatsA
 
 Empfänger speichern den Anhang in „Dateien“, öffnen die PWA und wählen **Figur importieren**. Alle neuen Videos müssen in der Vorschau bestätigt werden. Erst **Figur speichern** legt eine neue lokale Figur an, mit Lernstand **Neu**. Vorhandene Figuren werden nicht überschrieben. Bei einem wiedererkannten Paket fragt die App nach, ob eine weitere Kopie angelegt werden soll. Ein Abbruch legt keine dauerhaften Videos an.
 
-Das funktioniert zunächst ausschließlich zwischen PWAs. Die native Android- und iOS-App unterstützen das Format noch nicht. Direktes Teilen und die Zuverlässigkeit großer Pakete müssen zusätzlich auf echten Smartphones geprüft werden.
+Der ZIP-Austausch funktioniert zwischen den PWAs und der aktuellen Android-App. Die native Swift-iOS-App unterstützt das Format noch nicht. Direktes Teilen und die Zuverlässigkeit großer Pakete müssen zusätzlich auf echten Smartphones geprüft werden.
 
 ### Austauschformat v1
 

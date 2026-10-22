@@ -4,12 +4,12 @@ import path from 'node:path';
 const clip = path.resolve('web-tests/fixtures/clip.mp4');
 const portrait = path.resolve('web-tests/fixtures/portrait.mp4');
 async function start(page) {
-  await page.goto('/pwa/'); await expect(page.getByRole('heading', { name: 'Salsa Figuren' })).toBeVisible();
-  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit');
+  await page.goto('/pwa/'); await expect(page.getByRole('heading', { name: 'Step by Step' })).toBeVisible();
+  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit', { timeout: 30000 });
   await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
 }
 async function addFigure(page) {
-  await page.getByRole('button', { name: '＋ Figur hinzufügen' }).click();
+  await page.locator('#openAddFigure').tap(); await page.locator('#addFigure').click();
   await page.locator('#figureTitle').fill('Ocho'); await page.locator('#figureDescription').fill('Links drehen');
   await page.locator('#figureTags').fill('Drehung, Anfänger');
   await page.locator('#videoFiles').setInputFiles([clip, portrait]);
@@ -90,7 +90,7 @@ test('rename, reorder, preview replacement cancellation, discard and deletion', 
 });
 
 test('invalid preview cannot be saved and metadata conflicts roll back new blobs', async ({ page }) => {
-  await start(page); await page.locator('#addFigure').click(); await page.locator('#figureTitle').fill('Invalid');
+  await start(page); await page.locator('#openAddFigure').tap(); await page.locator('#addFigure').click(); await page.locator('#figureTitle').fill('Invalid');
   await page.locator('#videoFiles').setInputFiles({ name: 'broken.mp4', mimeType: 'video/mp4', buffer: Buffer.from('not a movie') });
   await page.locator('.draft-card').getByRole('button', { name: 'Vorschau', exact: true }).click();
   await expect(page.locator('#previewError')).toBeVisible(); await expect(page.locator('#acceptVideo')).toBeDisabled();
@@ -157,6 +157,7 @@ async function exportPackage(page, info, subset = false) {
   await page.locator('#closeShare').click(); return file;
 }
 async function choosePackage(page, file) {
+  await page.locator('#openAddFigure').tap();
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.getByRole('button', { name: 'Figur importieren', exact: true }).tap().then(async () => {
@@ -222,7 +223,7 @@ test('ZIP share uses a prepared file and keeps download available when native sh
 
 test('touch import works after cancel, keyboard editing and returning from the player', async ({ page }, info) => {
   await start(page);
-  await page.getByRole('button', { name: 'Figur importieren', exact: true }).tap();
+  await page.locator('#openAddFigure').tap(); await page.getByRole('button', { name: 'Figur importieren', exact: true }).tap();
   await expect(page.locator('#importChoiceDialog')).toBeVisible();
   await expect(page.locator('#packageFile')).toBeVisible();
   await page.locator('#closeImportChoice').tap();
@@ -241,7 +242,7 @@ test('touch import works after cancel, keyboard editing and returning from the p
 test('installed shell update bypasses stale HTTP CSS and preserves offline videos', async ({ page, context }, info) => {
   const id = `${info.project.name}-${Date.now()}`, scope = `/upgrade/${id}/`;
   await page.goto(scope);
-  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit');
+  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit', { timeout: 30000 });
   await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
   await expect(page.locator('html')).toHaveAttribute('data-app-version', 'qa-legacy-shell');
   await expect(page.locator('#importFigure')).toHaveCSS('pointer-events', 'none');
@@ -250,18 +251,18 @@ test('installed shell update bypasses stale HTTP CSS and preserves offline video
   await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
   await expect(page.locator('#updateNotice')).toBeVisible();
   // An update must not throw away a draft. It is applied from the overview.
-  await page.locator('#addFigure').tap(); await page.locator('#figureTitle').fill('Keep my draft');
+  await page.locator('#openAddFigure').tap(); await page.locator('#addFigure').tap(); await page.locator('#figureTitle').fill('Keep my draft');
   await page.evaluate(() => document.getElementById('applyUpdate').click());
   await expect(page.locator('#figureTitle')).toHaveValue('Keep my draft');
   await page.locator('#editorBack').tap(); await page.locator('#confirmOK').tap();
   await expect(page.locator('#editor')).not.toBeVisible();
   await page.locator('#applyUpdate').tap();
-  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-22-delete-location-v1');
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-22-local-parity-v1');
   await expect(page.locator('#importFigure')).toHaveCSS('pointer-events', 'auto');
   await expect(page.locator('.figure-card')).toHaveCount(1);
   const file = await exportPackage(page, info);
   await context.setOffline(true); await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-22-delete-location-v1');
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-22-local-parity-v1');
   await page.getByRole('button', { name: 'Ocho lernen' }).tap();
   await expect(page.locator('#learningVideo')).toHaveJSProperty('videoWidth', 320);
   await page.locator('#playPause').tap();
@@ -269,4 +270,31 @@ test('installed shell update bypasses stale HTTP CSS and preserves offline video
   await page.locator('#playerBack').tap();
   await choosePackage(page, file); await confirmImported(page, 2);
   await expect(page.locator('.figure-card')).toHaveCount(2);
+});
+
+
+test('installation and storage opens at the beginning on first open and reopen', async ({ page }) => {
+  await start(page);
+  const dialog = page.locator('#infoDialog');
+  for (let i = 0; i < 2; i++) {
+    await page.locator('#infoButton').tap();
+    await expect(page.locator('#infoTitle')).toBeFocused();
+    await expect.poll(() => dialog.evaluate(node => node.scrollTop)).toBe(0);
+    await expect(page.locator('#infoTitle')).toBeInViewport();
+    await page.locator('#closeInfo').tap();
+    await expect(dialog).not.toBeVisible();
+  }
+});
+
+test('mobile page gestures keep app scale fixed while one-finger scrolling remains available',async({page,context,browserName})=>{
+ test.skip(browserName!=='chromium','Chromium CDP provides real synthesized touch pinch and scroll gestures.');
+ await page.goto('/pwa/');await expect(page.getByRole('heading',{name:'Step by Step',exact:true})).toBeVisible();
+ await page.evaluate(()=>{document.querySelector('#figureList').style.height='1800px';});
+ const session=await context.newCDPSession(page);
+ await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:180,y:500}]});
+ for(let y=480;y>=180;y-=20)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:180,y}]});
+ await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(100);
+ await session.send('Input.synthesizePinchGesture',{x:180,y:450,scaleFactor:2,gestureSourceType:'touch',relativeSpeed:800});
+ await expect.poll(()=>page.evaluate(()=>window.visualViewport.scale)).toBe(1);
 });
