@@ -94,9 +94,11 @@ struct OverviewScreen: View {
                 LearningScreen(figure: figure, root: store.root) { learning = nil }
                 #endif
             }
-            .alert("Figur und alle zugehörigen Videokopien löschen?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
+            .alert("Figur löschen?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
                 Button("Löschen", role: .destructive) { if let figure = deleting { store.delete(figure) }; deleting = nil }
                 Button("Abbrechen", role: .cancel) { deleting = nil }
+            } message: {
+                Text("Die Figur und ihre zugehörigen Videos werden aus dem App-Speicher gelöscht. Deine ursprünglichen Importdateien bleiben erhalten.")
             }
             .alert("Lokaler Speicher", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
                 Button("Erneut laden") { store.error = nil; store.refresh() }

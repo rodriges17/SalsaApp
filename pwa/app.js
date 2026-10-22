@@ -1,4 +1,4 @@
-const APP_VERSION = '2026-10-19-sharing-v3';
+const APP_VERSION = '2026-10-22-delete-location-v1';
 import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
 import { listFigures, figureVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports } from './storage.js';
@@ -57,7 +57,7 @@ function renderOverview() {
     function showMenu() {
       options.setAttribute('aria-expanded', 'true'); const menu = el('div', 'card-menu');
       menu.append(button('Figur teilen', () => { closeMenus(); openShare(figure); }), button('Bearbeiten', () => { closeMenus(); openEditor(figure); }), button('Löschen', async () => {
-        closeMenus(); const accepted = await confirmAction({ title: `„${figure.title}“ löschen?`, message: 'Die Figur und alle zugehörigen lokalen Videokopien werden entfernt. Die Originaldateien bleiben erhalten.', ok: 'Löschen' });
+        closeMenus(); const accepted = await confirmAction({ title: `„${figure.title}“ löschen?`, message: 'Die Figur und ihre zugehörigen Videos werden aus dem App-Speicher gelöscht. Deine ursprünglichen Importdateien bleiben erhalten.', ok: 'Löschen' });
         if (accepted) { try { await deleteFigure(figure); changed(); await refresh(); toast('Figur gelöscht.'); } catch (error) { toast(storageMessage(error)); await refresh(); } }
       }, 'danger')); card.append(menu);
     }

@@ -37,6 +37,11 @@ final class NavigationTests: XCTestCase {
         expectation(for: portrait, evaluatedWith: nil); waitForExpectations(timeout: 10)
         app.buttons["Zurück"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: 5))
+        card.press(forDuration: 1)
+        app.buttons["Löschen"].tap()
+        XCTAssertTrue(app.staticTexts["Die Figur und ihre zugehörigen Videos werden aus dem App-Speicher gelöscht. Deine ursprünglichen Importdateien bleiben erhalten."].waitForExistence(timeout: 5))
+        app.buttons["Abbrechen"].tap()
+        XCTAssertTrue(card.exists)
     }
 
 }
