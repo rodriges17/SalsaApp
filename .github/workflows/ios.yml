@@ -1,9 +1,9 @@
 name: iOS build and tests
 on:
   push:
-    paths: ['ios/**', '.github/workflows/ios.yml']
+    paths: ['ios/**', 'scripts/**', '.github/workflows/ios*.yml']
   pull_request:
-    paths: ['ios/**', '.github/workflows/ios.yml']
+    paths: ['ios/**', 'scripts/**', '.github/workflows/ios*.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Validate release profile checks
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
@@ -61,6 +63,15 @@ jobs:
             -destination 'generic/platform=iOS' -archivePath SalsaTrainer-unsigned.xcarchive \
             CODE_SIGNING_ALLOWED=NO | tee ios-archive.log
           ditto -c -k --keepParent SalsaTrainer-unsigned.xcarchive SalsaTrainer-unsigned.xcarchive.zip
+      - name: Package simulator app
+        run: |
+          ditto -c -k --keepParent DerivedData/Build/Products/Debug-iphonesimulator/SalsaTrainer.app StepByStep-simulator.app.zip
+      - name: Upload simulator application
+        uses: actions/upload-artifact@v4
+        with:
+          name: StepByStep-iOS-Simulator
+          path: StepByStep-simulator.app.zip
+          retention-days: 7
       - name: Upload logs and test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,13 +83,16 @@ jobs:
             ios-archive.log
             TestResults.xcresult
           if-no-files-found: warn
+          retention-days: 7
       - name: Upload unsigned device archive
         uses: actions/upload-artifact@v4
         with:
           name: SalsaTrainer-unsigned-device-archive
           path: SalsaTrainer-unsigned.xcarchive.zip
+          retention-days: 7
       - name: Upload generated Xcode project
         uses: actions/upload-artifact@v4
         with:
           name: SalsaTrainer-Xcode-source
           path: ios
+          retention-days: 7

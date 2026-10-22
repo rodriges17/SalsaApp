@@ -3,9 +3,9 @@ import AVFoundation
 
 // Colors follow the original Android design supplied by the user.
 enum Palette {
-    static let background = Color(red: 23/255, green: 20/255, blue: 31/255)
-    static let card = Color(red: 54/255, green: 51/255, blue: 61/255)
-    static let lavender = Color(red: 205/255, green: 183/255, blue: 247/255)
+    static let background = Color(red: 23/255, green: 18/255, blue: 31/255)
+    static let card = Color(red: 41/255, green: 33/255, blue: 50/255)
+    static let lavender = Color(red: 207/255, green: 180/255, blue: 246/255)
     static let peach = Color(red: 1, green: 176/255, blue: 151/255)
     static let purple = Color(red: 80/255, green: 53/255, blue: 137/255)
 }
@@ -39,14 +39,18 @@ struct OverviewScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Text("Salsa Figuren").font(.largeTitle)
+                HStack(spacing: 10) {
+                    Image("DanceMark").resizable().scaledToFit().frame(width: 32, height: 36).foregroundStyle(Palette.lavender).accessibilityHidden(true)
+                    Text("Step by Step").font(.title.bold())
+                }
                 Spacer()
                 Menu("Tags") {
                     Button("Alle Tags") { tag = nil }
                     ForEach(Array(Set(store.figures.flatMap(\.tags))).sorted(), id: \.self) { value in Button(value) { tag = value } }
                 }.foregroundStyle(Palette.peach)
             }
-            Text("Deine Schritte. Dein Tempo.").font(.title3.bold()).foregroundStyle(Palette.lavender)
+            Text("Meine Figuren").font(.title.bold())
+            Text("Deine Schritte. Dein Tempo.").font(.subheadline).foregroundStyle(.secondary)
             TextField("Figur suchen", text: $query).padding().overlay(RoundedRectangle(cornerRadius: 6).stroke(.gray))
                 .accessibilityIdentifier("searchFigures")
             ScrollView(.horizontal, showsIndicators: false) {

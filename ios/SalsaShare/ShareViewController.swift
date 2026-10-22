@@ -51,7 +51,7 @@ struct ShareImportScreen: View {
     @State private var editor: EditRequest?
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack { Text("Zu Salsa Trainer hinzufügen").font(.title2.bold()); Spacer(); Button("Abbrechen", action: finish) }
+            HStack { Text("Zu Step by Step hinzufügen").font(.title2.bold()); Spacer(); Button("Abbrechen", action: finish) }
             Text("\(incoming.count) Video(s) · Wähle eine neue oder bestehende Figur.")
             Button("Neue Figur") { editor = EditRequest(figure: nil) }.buttonStyle(.borderedProminent)
             List(store.figures.sorted { $0.title < $1.title }) { figure in

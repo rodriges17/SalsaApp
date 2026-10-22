@@ -1,10 +1,28 @@
-# Salsa Trainer – PWA und native iPhone-App
+# Step by Step – native iPhone-App
+
+Die iOS-Vorbereitung läuft in **https://github.com/rodriges17/SalsaAppIOS**.
+Die vorhandene native Swift-App wird weiterverwendet. Name und Tanzpaar-Logo
+entsprechen jetzt Step by Step. Der kostenlose GitHub-macOS-Workflow baut und
+testet ohne Apple-Konto im Simulator und liefert zusätzlich ein unsigniertes
+Gerätearchiv. Ein eigener Mac ist dafür nicht nötig.
+
+**[Aktuelle Einrichtung, Cloud-Anbieter/Kosten und TestFlight-Vorbereitung](docs/IOS-SETUP.md)**
+
+Der separate manuelle Workflow `ios-testflight.yml` ist für spätere echte
+Signierungsdaten vorbereitet. Er läuft nicht automatisch und lädt standardmäßig
+nichts hoch. Ohne Apple-Developer-Mitgliedschaft und Signierung gibt es noch
+keine auf einem iPhone installierbare Version. Die native Swift-App hat noch
+nicht den vollständigen Funktionsumfang der aktuellen SalsaAppCloud-PWA;
+die offenen Punkte sind im Einrichtungsdokument benannt.
+
+Die folgenden Abschnitte beschreiben die vorhandene native Basis und die ältere
+PWA-Kopie dieses Repos. Die aktuelle PWA wird in **SalsaAppCloud** entwickelt.
 
 ## PWA auf iPhone oder Android
 
 Die Web-App liegt im Ordner `pwa/` und wird durch `.github/workflows/pwa.yml` nach bestandenen Tests auf **GitHub Pages** veröffentlicht.
 
-Geplante Adresse: **https://rodriges17.github.io/SalsaApp/**. Ob die Veröffentlichung bereits erfolgreich war, zeigt der Workflow „PWA tests and GitHub Pages“ unter Actions. Falls GitHub die erstmalige Pages-Aktivierung für den Workflow-Token verweigert: Repository → Settings → Pages → Build and deployment → Source → **GitHub Actions**, dann den Workflow erneut ausführen.
+Geplante Adresse: **https://rodriges17.github.io/SalsaAppIOS/**. Ob die Veröffentlichung bereits erfolgreich war, zeigt der Workflow „PWA tests and GitHub Pages“ unter Actions. Falls GitHub die erstmalige Pages-Aktivierung für den Workflow-Token verweigert: Repository → Settings → Pages → Build and deployment → Source → **GitHub Actions**, dann den Workflow erneut ausführen.
 
 Auf dem iPhone den Link in Safari öffnen → Teilen → **Zum Home-Bildschirm** → als Web-App öffnen. Erst die installierte App über ihr Symbol starten und dort die Videos importieren. Dafür ist weder ein Mac noch Apple-Signierung erforderlich.
 
