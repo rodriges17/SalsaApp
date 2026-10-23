@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm test
       - run: npx playwright install chromium webkit
@@ -31,7 +34,7 @@ jobs:
           ffmpeg -f lavfi -i testsrc2=size=180x320:rate=12 -t 5 -c:v libx264 -pix_fmt yuv420p -movflags +faststart web-tests/fixtures/portrait.mp4
       - run: npm run test:browser
         env:
-          DEBUG: pw:browser
+          DEBUG: pw:browser,pw:webserver
       - name: Upload browser results
         if: always()
         uses: actions/upload-artifact@v4
