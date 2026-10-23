@@ -29,7 +29,8 @@ ZIP-Austausch und vollständige Backups einschließlich Lernständen. In geeigne
 Browsern können verwaltete Geräteordner verbunden und Figuren zwischen App-Speicher
 und Ordner übertragen werden. Videos werden beim Lernen erst bei Bedarf geladen.
 
-UI: Step-by-Step-Logo im Titel und Figuren-Tab, Hell/Dunkel, feststehender Header,
+UI: Step-by-Step-Logo im Titel und Figuren-Tab, Hell/Dunkel, feststehender Header
+mit „Deine Schritte. Dein Tempo.“ unter dem Titel, fixierte Suche und Filter,
 kompakte Navigation am unteren Rand, vollständig erreichbares Menü der letzten
 Figur, Zoom-Sperre und Speicherort-bezogener Löschhinweis. Cloud-Navigation,
 Anmeldung, Bibliotheken, Upload/Download und Backend-Konfiguration sind nicht enthalten.
@@ -50,6 +51,17 @@ intern gespeicherte Figuren; regelmäßige vollständige Backups schützen die D
 `npm run test:browser` prüft Chrome und WebKit, einschließlich Offline-Update mit
 bestehenden Medien, Geräteordner, Backup/Restore, Touch-Import, Zoom und UI.
 GitHub Actions veröffentlicht nach bestandenen Tests und prüft die Live-Seite.
+
+Abgleich am 23.10.2026 mit SalsaAppCloud `3e810d144187b56c4d1439cfceab031d65e4d756`:
+Die lokalen Speicher-, Ordner-, Player-, ZIP- und Backup-Module sind übernommen.
+Prüfsummen werden schneller berechnet; bereits geprüfte unveränderte Ordnervideos
+werden beim Speichern von Metadaten nicht vollständig erneut gelesen. Externe
+Änderungen werden weiterhin erkannt. Während des Speicherns erscheinen sofort
+„Figur inkl. Video(s) werden gespeichert...“ und ein Fortschrittsindikator.
+Zurück-Pfeile sind einheitlich ausgerichtet; kompakte feste Zeilen lassen auch im
+Querformat Platz für die Figuren. Die überflüssige Offline-Zeile ist aus der
+Übersicht entfernt; Offline-Informationen stehen in den Einstellungen.
+Cloud-Cache, Anmeldung und Cloud-Bibliotheken gehören ausschließlich zur Cloud-Variante.
 
 ---
 

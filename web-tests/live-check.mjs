@@ -12,7 +12,12 @@ for (const [name, engine, options] of [
     const context = await browser.newContext(options), page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
-    await page.waitForFunction(() => document.documentElement.dataset.appVersion === '2026-10-22-local-settings-header-v1');
+    await page.waitForFunction(() => document.documentElement.dataset.appVersion === '2026-10-23-local-parity-v1');
+    assert.equal(await page.locator('.overview > .heading .brand-slogan').textContent(), 'Deine Schritte. Dein Tempo.');
+    assert.equal(await page.locator('#cloudDialog,[data-nav=cloud],#offlineStatus').count(), 0);
+    await page.locator('#infoButton').tap();
+    assert.equal(await page.locator('#infoDialog').innerText().then(text => /Cloud/.test(text)), false);
+    await page.locator('#closeInfoTop').tap();
     await page.getByRole('button', { name: 'Figur hinzufügen', exact: true }).tap();
     await page.getByRole('button', { name: 'Figur importieren', exact: true }).tap();
     assert.equal(await page.locator('#importChoiceDialog').isVisible(), true);

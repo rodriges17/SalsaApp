@@ -5,7 +5,7 @@ const clip = path.resolve('web-tests/fixtures/clip.mp4');
 const portrait = path.resolve('web-tests/fixtures/portrait.mp4');
 async function start(page) {
   await page.goto('/pwa/'); await expect(page.getByRole('heading', { name: 'Step by Step' })).toBeVisible();
-  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit', { timeout: 30000 });
+  await expect(page.locator('html')).toHaveAttribute('data-offline-status','ready', { timeout: 30000 });
   await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
 }
 async function addFigure(page) {
@@ -242,7 +242,7 @@ test('touch import works after cancel, keyboard editing and returning from the p
 test('installed shell update bypasses stale HTTP CSS and preserves offline videos', async ({ page, context }, info) => {
   const id = `${info.project.name}-${Date.now()}`, scope = `/upgrade/${id}/`;
   await page.goto(scope);
-  await expect(page.locator('#offlineStatus')).toContainText('Offline bereit', { timeout: 30000 });
+  await expect(page.locator('html')).toHaveAttribute('data-offline-status','ready', { timeout: 30000 });
   await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
   await expect(page.locator('html')).toHaveAttribute('data-app-version', 'qa-legacy-shell');
   await expect(page.locator('#importFigure')).toHaveCSS('pointer-events', 'none');
@@ -257,12 +257,12 @@ test('installed shell update bypasses stale HTTP CSS and preserves offline video
   await page.locator('#editorBack').tap(); await page.locator('#confirmOK').tap();
   await expect(page.locator('#editor')).not.toBeVisible();
   await page.locator('#applyUpdate').tap();
-  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-22-local-settings-header-v1');
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-23-local-parity-v1');
   await expect(page.locator('#importFigure')).toHaveCSS('pointer-events', 'auto');
   await expect(page.locator('.figure-card')).toHaveCount(1);
   const file = await exportPackage(page, info);
   await context.setOffline(true); await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-22-local-settings-header-v1');
+  await expect(page.locator('html')).toHaveAttribute('data-app-version', '2026-10-23-local-parity-v1');
   await page.getByRole('button', { name: 'Ocho lernen' }).tap();
   await expect(page.locator('#learningVideo')).toHaveJSProperty('videoWidth', 320);
   await page.locator('#playPause').tap();
@@ -304,4 +304,13 @@ test('mobile page gestures keep app scale fixed while one-finger scrolling remai
  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(100);
  await session.send('Input.synthesizePinchGesture',{x:180,y:450,scaleFactor:2,gestureSourceType:'touch',relativeSpeed:800});
  await expect.poll(()=>page.evaluate(()=>window.visualViewport.scale)).toBe(1);
+});
+
+test('saving shows figure and video message with an activity indicator until the copy finishes',async({page})=>{
+ await start(page);await page.locator('#openAddFigure').tap();await page.locator('#addFigure').tap();await page.locator('#figureTitle').fill('Speichertest');await page.locator('#videoFiles').setInputFiles(clip);
+ await page.locator('#reviewAll').tap();await expect(page.locator('#acceptVideo')).toBeEnabled();await page.locator('#acceptVideo').tap();
+ await page.evaluate(()=>{const put=Cache.prototype.put;Cache.prototype.put=async function(request,...args){if(String(request).includes('__private_media__'))await new Promise(resolve=>window.releaseSaving=resolve);return put.call(this,request,...args);};});
+ await page.locator('#saveFigure').tap();await page.waitForFunction(()=>!!window.releaseSaving);
+ await expect(page.locator('#saveProgress')).toHaveText('Figur inkl. Video(s) werden gespeichert...');await expect(page.locator('#saveIndicator')).toBeVisible();await expect(page.locator('#saveFigure')).toBeDisabled();
+ await page.evaluate(()=>window.releaseSaving());await expect(page.locator('#editor')).not.toBeVisible();await expect(page.getByRole('button',{name:'Speichertest lernen',exact:true})).toBeVisible();
 });
