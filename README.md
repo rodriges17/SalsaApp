@@ -120,3 +120,12 @@ Der ZIP-Austausch funktioniert zwischen den PWAs und der aktuellen Android-App. 
 Standard-ZIP, Methode STORE (keine Komprimierung), UTF-8-Dateinamen, ohne ZIP64, Verschlüsselung, Kommentare, Extra-Felder oder Data Descriptors. Enthalten sind `figure.json` und `videos/1.mp4` usw. `figure.json` enthält `format: "salsa-figure"`, `version: 1`, `title`, `description`, `tags` und `videos: [{path, name, type, size}]`. Unterstützte MIME-Typen: MP4, QuickTime, M4V, WebM, Ogg. Das jeweilige Gerät muss das Video zusätzlich abspielen können.
 
 Der Import prüft Größe, Struktur, Pfade, Anzahl, CRC32-Prüfsummen und Schema vor dem Öffnen des Entwurfs. Fremde oder nachträglich neu komprimierte ZIP-Dateien werden abgewiesen. Der Wiederholungshinweis verwendet SHA-256 über normalisierte Metadaten, Größen und CRC32; er ist keine Authentizitätsprüfung. Der Fingerabdruck wird zusammen mit der Figur gespeichert und beim Bearbeiten erhalten.
+
+
+ZIP-Speichern (23.10.2026): Ein eigener Button startet den Speicherort-Dialog,
+wenn der Browser ihn unterstützt; sonst wird der Browser-Download unmittelbar
+im Tippen ausgelöst. Status und Spinner zeigen ZIP-Erstellung und Dateiübergabe.
+Fehler und Abbruch lassen die vorbereitete ZIP zum Wiederholen erhalten.
+„Download angefordert“ bestätigt die Übergabe an den Browser, nicht dessen
+Speicherabschluss. Die native Android-App übergibt Dateien in begrenzten Blöcken an den nativen
+Speichern-/Teilen-Dialog. Lernstände bleiben vom Figur-ZIP ausgeschlossen.
