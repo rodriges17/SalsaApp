@@ -12,7 +12,7 @@ for (const [name, engine, options] of [
     const context = await browser.newContext(options), page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
-    await page.waitForFunction(() => document.documentElement.dataset.appVersion === '2026-10-23-local-zip-save-v1');
+    await page.waitForFunction(() => document.documentElement.dataset.appVersion === '2026-10-23-local-storage-status-v1');
     assert.equal(await page.locator('.overview > .heading .brand-slogan').textContent(), 'Deine Schritte. Dein Tempo.');
     assert.equal(await page.locator('#cloudDialog,[data-nav=cloud],#offlineStatus').count(), 0);
     await page.locator('#infoButton').tap();
