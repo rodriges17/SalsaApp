@@ -1,8 +1,7 @@
-const APP_VERSION = '2026-10-23-local-figure-zip-workflow-v1';
+const APP_VERSION = '2026-10-24-storage-choices-v1';
 import { initBackup } from './backup-ui.js';
-import { createFileDelivery } from './file-delivery.js';
-import { createFigureZipWorkflow } from './figure-zip.js';
-import { importFigure } from './package.js';
+import { saveFile, saveResult } from './file-delivery.js';
+import { exportFigure, importFigure, packageSize, packageFilename, MAX_PACKAGE_BYTES } from './package.js';
 import { checksum } from './package.js';
 import { STATUSES, cleanTags, timeLabel, filterFigures, ABLoop } from './logic.js';
 import { listFigures, figureVideos, playerVideos, saveFigure, deleteFigure, storageMessage, cleanupInterruptedImports, folderSupported, storageSettings, chooseFolder, connectFolder, allowFolderAccess, setStorageFolder, transferFigure } from './storage.js';
@@ -383,9 +382,10 @@ async function renderDeviceStorage() {
   const settings = await storageSettings(), controls = $('deviceStorageControls'); controls.replaceChildren();
   const selected = settings.folders.find(f => f.id === settings.activeFolder);
   $('deviceStorageActive').textContent = `Neue Figuren: ${selected ? 'Geräteordner „' + selected.name + '“' : 'App-Speicher'}. Vorhandene Figuren bleiben an ihrem bisherigen Speicherort.`;
-  controls.append(button('App-Speicher verwenden', () => deviceWork(() => setStorageFolder(null)), 'secondary'));
+  const confirmed = label => { const control = button('✓ ' + label, () => {}, 'secondary storage-confirmed'); control.disabled = true; return control; };
+  controls.append(!selected ? confirmed('App-Speicher für neue Figuren aktiv') : button('App-Speicher verwenden', () => deviceWork(() => setStorageFolder(null)), 'secondary'));
   if (settings.supported) {
-    controls.append(button('Geräteordner auswählen', async () => {
+    controls.append(button(settings.folders.length ? 'Weiteren Geräteordner auswählen' : 'Geräteordner auswählen', async () => {
       // Open the OS picker directly in the click handler, before any other async work.
       let candidate; try { candidate = await chooseFolder(); } catch (e) { if (e.name !== 'AbortError') $('deviceStorageStatus').textContent = storageMessage(e); return; }
       const count = candidate.figureCount;
@@ -394,8 +394,18 @@ async function renderDeviceStorage() {
     }, 'secondary'));
   } else controls.append(el('p', 'muted', 'Geräteordner werden in diesem Browser nicht unterstützt. Verwende aktuelles Chrome auf Android oder Desktop. Auf iPhone/Safari bleibt der App-Speicher mit ZIP-Sicherung verfügbar.'));
   for (const folder of settings.folders) {
-    const row = el('div', 'cloud-card'); row.append(el('strong', '', `${folder.name} · ${folder.figureCount} Figuren${folder.id === settings.activeFolder ? ' · aktiv' : ''}`));
-    if (settings.supported) row.append(button('Ordnerzugriff erlauben', () => deviceWork(() => allowFolderAccess(folder.id)), 'secondary'), button('Für neue Figuren verwenden', () => deviceWork(async () => { await allowFolderAccess(folder.id); await setStorageFolder(folder.id); }), 'secondary'));
+    const row = el('div', 'cloud-card'); row.dataset.folderId = folder.id;
+    row.append(el('strong', '', `✓ ${folder.name} · ${folder.figureCount} Figur${folder.figureCount === 1 ? '' : 'en'} · verbunden`));
+    if (settings.supported) {
+      const granted = folder.access === 'granted', active = folder.id === settings.activeFolder;
+      row.append(granted ? confirmed('Ordnerzugriff erlaubt') : button('Ordnerzugriff erlauben', () => deviceWork(() => allowFolderAccess(folder.id)), 'secondary'));
+      if (active && granted) row.append(confirmed('Für neue Figuren aktiv'));
+      else if (active) {
+        const waiting = button('Für neue Figuren ausgewählt', () => {}, 'secondary'); waiting.disabled = true; row.append(waiting);
+        row.append(el('p', 'error', 'Für neue Figuren ausgewählt. Bitte den Ordnerzugriff erlauben, bevor du hier speicherst.'));
+      } else row.append(button('Für neue Figuren verwenden', () => deviceWork(async () => { await allowFolderAccess(folder.id); await setStorageFolder(folder.id); }), 'secondary'));
+      if (folder.access === 'unavailable') row.append(el('p', 'error', 'Der Ordnerzugriff konnte nicht geprüft werden. Bitte erneut erlauben oder den Ordner neu auswählen.'));
+    }
     if (folder.pendingCleanup) row.append(el('p', 'error', 'Dateibereinigung ausstehend. Sie wird beim nächsten Speichern oder Löschen erneut versucht.'));
     controls.append(row);
   }
@@ -482,43 +492,104 @@ renderFilters();
 function updateViewport() { document.documentElement.style.setProperty('--app-height', `${window.visualViewport?.height ?? innerHeight}px`); }
 window.visualViewport?.addEventListener('resize', updateViewport); updateViewport();
 
-// Preparation and hand-off have separate clicks to preserve user activation.
-let sharing = false, packageImport = null;
-const zipDelivery = createFileDelivery({ container: $('shareDialog'), label: 'ZIP', onChange: () => zipWorkflow.refresh() });
-const zipWorkflow = createFigureZipWorkflow({ readVideos: figureVideos, delivery: zipDelivery,
-  yieldToUI: () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))), onChange: renderShare });
-function renderShare(state) {
-  sharing = state.open;
-  if (!state.open) return;
-  $('shareTitle').textContent = `„${state.title}“ teilen`;
-  const choices = state.videos.map(video => {
-    const label = el('label', 'share-choice'), input = el('input'); input.type = 'checkbox'; input.checked = video.selected;
-    input.onchange = () => zipWorkflow.select(video.id, input.checked);
-    label.append(input, el('span', '', `${video.name} · ${(video.size / 1048576).toFixed(1)} MB`)); return label;
-  });
-  $('shareVideos').replaceChildren(...choices); $('shareVideos').disabled = state.busy;
-  $('shareSize').textContent = `${state.count} Videos · ca. ${(state.size / 1048576).toFixed(1)} MB / 250 MB`;
-  $('preparePackage').disabled = !state.canPrepare; $('preparePackage').hidden = state.ready;
-  $('downloadPackage').hidden = !state.ready; $('sendPackage').hidden = !state.canShare;
-  for (const id of ['downloadPackage', 'sendPackage']) {
-    $(id).disabled = state.busy; $(id).setAttribute('aria-busy', String(state.delivering));
-  }
-  $('shareProgress').textContent = state.message; $('shareProgress').hidden = !state.message;
-  $('shareProgress').classList.toggle('is-busy', state.busy);
-  $('closeShare').disabled = !state.canClose; setError('shareError', state.error || null);
-}
+// Export preparation is separate from the Share click, preserving user activation.
+let sharing = null, packageImport = null;
 async function openShare(figure) {
   if (opening || editor || learning || sharing || packageImport) return;
   opening = true;
-  try { if (await zipWorkflow.open(figure)) $('shareDialog').showModal(); }
-  catch (error) { toast(storageMessage(error)); } finally { opening = false; }
+  try {
+    const records = await figureVideos(figure);
+    sharing = { figure, records, selected: new Set(records.map(r => r.id)), file: null, controller: null, url: null };
+    $('shareTitle').textContent = `„${figure.title}“ teilen`;
+    $('shareVideos').replaceChildren(); setError('shareError', null);
+    records.forEach((record, index) => {
+      const label = el('label', 'share-choice'), input = el('input'); input.type = 'checkbox'; input.checked = true;
+      input.onchange = () => {
+        if (!sharing) return;
+        if (input.checked) sharing.selected.add(record.id); else sharing.selected.delete(record.id);
+        clearShareFile(); updateShare();
+      };
+      label.append(input, el('span', '', `${record.name || `Video ${index + 1}`} · ${(record.blob.size / 1048576).toFixed(1)} MB`));
+      $('shareVideos').append(label);
+    });
+    updateShare(); $('shareDialog').showModal();
+  } catch (error) { toast(storageMessage(error)); } finally { opening = false; }
 }
-function closeShare() { if (zipWorkflow.close()) $('shareDialog').close(); }
+function clearShareFile() {
+  if (!sharing) return;
+  releaseURL(sharing.url); sharing.url = null; sharing.file = null;
+  $('sendPackage').hidden = true; $('downloadPackage').hidden = true;
+  $('shareProgress').hidden = true;
+}
+function updateShare() {
+  if (!sharing) return;
+  const records = sharing.records.filter(r => sharing.selected.has(r.id));
+  const size = packageSize(sharing.figure, records);
+  $('shareSize').textContent = `${records.length} Videos · ca. ${(size / 1048576).toFixed(1)} MB / 250 MB`;
+  const busy = !!sharing.controller || !!sharing.delivering;
+  $('preparePackage').disabled = busy || !records.length || records.length > 100 || size > MAX_PACKAGE_BYTES;
+  $('shareVideos').disabled = busy;
+  $('sendPackage').disabled = busy; $('downloadPackage').disabled = busy;
+  $('sendPackage').setAttribute('aria-busy', String(!!sharing.delivering));
+  $('downloadPackage').setAttribute('aria-busy', String(!!sharing.delivering));
+  $('shareProgress').classList.toggle('is-busy', busy);
+  if (busy) $('shareProgress').hidden = false;
+  $('closeShare').disabled = !!sharing.delivering;
+  $('preparePackage').hidden = !!sharing.file;
+  if (!sharing.file) { $('sendPackage').hidden = true; $('downloadPackage').hidden = true; }
+}
+function closeShare() {
+  if (sharing?.delivering) return;
+  sharing?.controller?.abort(); clearShareFile(); sharing = null; $('shareDialog').close();
+}
 $('closeShare').onclick = closeShare;
 $('shareDialog').addEventListener('cancel', event => { event.preventDefault(); closeShare(); });
-$('preparePackage').onclick = () => zipWorkflow.prepare();
-$('downloadPackage').onclick = () => zipWorkflow.deliver('save');
-$('sendPackage').onclick = () => zipWorkflow.deliver('share');
+$('preparePackage').onclick = async () => {
+  const active = sharing; if (!active || active.controller) return;
+  active.controller = new AbortController(); setError('shareError', null); $('shareProgress').textContent = 'ZIP inkl. Video(s) wird erstellt …'; updateShare();
+  try {
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    const blob = await exportFigure(active.figure, active.records.filter(r => active.selected.has(r.id)), active.controller.signal);
+    if (sharing !== active) return;
+    active.file = new File([blob], packageFilename(active.figure.title), { type: 'application/zip' });
+    $('shareProgress').textContent = 'ZIP bereit. Jetzt speichern oder teilen.';
+    $('downloadPackage').hidden = false;
+    $('sendPackage').hidden = !(navigator.share && navigator.canShare?.({ files: [active.file] }));
+  } catch (error) { if (sharing === active) { $('shareProgress').textContent = error.name === 'AbortError' ? 'ZIP-Erstellung abgebrochen.' : 'ZIP-Erstellung fehlgeschlagen.'; if (error.name !== 'AbortError') setError('shareError', storageMessage(error)); } }
+  finally { if (sharing === active) { active.controller = null; updateShare(); } }
+};
+function deliverPackage(kind) {
+  const active = sharing; if (!active?.file || active.controller || active.delivering) return;
+  active.delivering = true; setError('shareError', null);
+  $('shareProgress').textContent = kind === 'save' ? 'ZIP wird zum Speichern übergeben …' : 'ZIP wird zum Teilen übergeben …';
+  updateShare();
+  const started = performance.now();
+  let work;
+  try {
+    // Do not yield here: native sharing and the save picker need this click's activation.
+    work = kind === 'save'
+      ? saveFile(active.file, { container: $('shareDialog'), progress: text => { if (sharing === active) $('shareProgress').textContent = text; } })
+      : navigator.share({ files: [active.file] }).then(result => result === 'native' ? 'native' : 'shared');
+  } catch (error) { work = Promise.reject(error); }
+  return Promise.resolve(work).then(result => {
+    if (sharing === active) {
+      $('shareProgress').textContent = kind === 'save' || result === 'native' ? saveResult(result) : 'Datei an die gewählte App übergeben.';
+      if (result === 'download' && !$('sendPackage').hidden) $('shareProgress').textContent += ' Falls keine Datei erscheint, ZIP teilen und eine Dateien-App wählen.';
+    }
+  }).catch(error => {
+    if (sharing !== active) return;
+    $('shareProgress').textContent = error.name === 'AbortError' ? 'Vorgang abgebrochen. Die ZIP bleibt zum erneuten Speichern oder Teilen bereit.' : 'Die ZIP konnte nicht übergeben werden.';
+    if (error.name !== 'AbortError') setError('shareError', kind === 'save'
+      ? 'Speichern fehlgeschlagen. Bitte erneut versuchen oder ZIP teilen und eine Dateien-App wählen. ' + (error.message ?? '')
+      : 'Direktes Teilen ist nicht möglich. Bitte ZIP speichern und in WhatsApp als Dokument anhängen.');
+  }).finally(async () => {
+    // Let the immediate hand-off remain visible even when the browser returns synchronously.
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, 350 - (performance.now() - started))));
+    if (sharing === active) { active.delivering = false; updateShare(); }
+  });
+}
+$('downloadPackage').onclick = () => deliverPackage('save');
+$('sendPackage').onclick = () => deliverPackage('share');
 $('importFigure').onclick = () => {
   if (editor || opening || packageImport) { toast('Bitte zuerst den aktuellen Vorgang beenden.'); return; }
   $('addChoiceDialog').close(); $('packageFile').value = ''; $('importChoiceDialog').showModal();
