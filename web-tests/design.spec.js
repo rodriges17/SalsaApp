@@ -25,7 +25,7 @@ test('local app keeps the header and last figure menu visible without cloud cont
  }
  await page.locator('#infoButton').tap();await expect(page.locator('#infoDialog')).not.toContainText('Cloud');
  await expect(page.locator('.settings-brand-header .brand-slogan')).toHaveText('Deine Schritte. Dein Tempo.');
- await page.locator('#closeInfo').scrollIntoViewIfNeeded();
+ await page.locator('#infoDialog').evaluate(dialog => { dialog.scrollTop = dialog.scrollHeight; });
  const brand=await page.locator('.settings-brand-header').boundingBox(),back=await page.locator('#closeInfoTop svg').boundingBox(),title=await page.locator('#infoTitle').boundingBox();expect(Math.abs(brand.y)).toBeLessThan(2);expect(Math.abs(back.y+back.height/2-title.y-title.height/2)).toBeLessThan(1);
  await page.locator('#closeInfoTop').tap();
  expect(external).toEqual([]);expect(errors).toEqual([]);
