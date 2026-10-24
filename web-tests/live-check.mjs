@@ -1,6 +1,9 @@
 import { chromium, webkit, devices } from 'playwright';
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
+const appSource = await readFile(new URL('../pwa/app.js', import.meta.url), 'utf8');
+const expectedVersion = appSource.match(/const APP_VERSION = '([^']+)'/)?.[1];
+assert.ok(expectedVersion, 'The source app must declare its deployment version.');
 const url = 'https://rodriges17.github.io/SalsaAppIOS/';
 await mkdir('test-results/live', { recursive: true });
 for (const [name, engine, options] of [
@@ -12,7 +15,7 @@ for (const [name, engine, options] of [
     const context = await browser.newContext(options), page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
-    await page.waitForFunction(() => document.documentElement.dataset.appVersion === '2026-10-23-local-figure-zip-workflow-v1');
+    await page.waitForFunction(expected => document.documentElement.dataset.appVersion === expected, expectedVersion);
     assert.equal(await page.locator('.overview > .heading .brand-slogan').textContent(), 'Deine Schritte. Dein Tempo.');
     assert.equal(await page.locator('#cloudDialog,[data-nav=cloud],#offlineStatus').count(), 0);
     await page.locator('#infoButton').tap();
