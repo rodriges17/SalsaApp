@@ -130,4 +130,4 @@ Fehler und Abbruch lassen die vorbereitete ZIP zum Wiederholen erhalten.
 Speicherabschluss. Die native Android-App übergibt Dateien in begrenzten Blöcken an den nativen
 Speichern-/Teilen-Dialog. Lernstände bleiben vom Figur-ZIP ausgeschlossen.
 
-Die Speichereinstellungen zeigen verbundene Geräteordner, aktuell erlaubten Zugriff und den Standard für neue Figuren getrennt. Bereits erfüllte Aktionen sind mit Häkchen gut lesbar bestätigt. Die Rechteprüfung beim Öffnen der Einstellungen fragt nur den aktuellen Status ab und löst keine Zugriffsanfrage aus.
+Die Speichereinstellungen verwenden Prototype-Variante B: App-Speicher und verbundene Geräteordner erscheinen als direkt auswählbare Speicherorte mit sichtbarer Auswahl und Zugriffsstatus. Jeder Wechsel erfordert „Speicherort wechseln?“ → „Wechseln“; Abbrechen, Zurück und verweigerter Ordnerzugriff lassen den bisherigen Standard unverändert. Vorhandene Figuren und Videos werden dadurch nicht verschoben. Die Rechteprüfung beim Öffnen der Einstellungen fragt nur den aktuellen Status ab und löst keine Zugriffsanfrage aus.
