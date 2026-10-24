@@ -1,4 +1,4 @@
-const APP_VERSION = '2026-10-24-settings-back-v1';
+const APP_VERSION = '2026-10-24-touch-navigation-v1';
 import { initBackup } from './backup-ui.js';
 import { createFileDelivery } from './file-delivery.js';
 import { createFigureZipWorkflow } from './figure-zip.js';
@@ -10,6 +10,7 @@ import { listFigures, figureVideos, playerVideos, saveFigure, deleteFigure, stor
 const $ = id => document.getElementById(id);
 const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
 const button = (text, action, className = '') => { const node = el('button', className, text); node.type = 'button'; node.addEventListener('click', action); return node; };
+function focusFiguresNavigation() { document.querySelector('#overview + .bottom-nav [data-nav=figures]')?.focus({ preventScroll: true }); }
 let figures = [], statusFilter = '', selectedTag = '', editor = null, preview = null, learning = null;
 let route = 'home', opening = false, toastTimer, reviewNext = false;
 let posterURLs = [], videoURL = null, previewURL = null;
@@ -484,6 +485,7 @@ async function storageInfo() {
 }
 function showInfoDialog() {
   const dialog = $('infoDialog');
+  if (document.activeElement === $('search')) $('search').blur();
   dialog.showModal();
   $('infoTitle').focus({ preventScroll: true });
   dialog.scrollTop = 0;
@@ -610,7 +612,7 @@ document.querySelectorAll('[data-nav]').forEach(nav => {
   nav.onclick = async () => {
     if (nav.closest('#infoDialog')) { if (deviceBusy) return; $('infoDialog').close(); }
     if (learning) { await new Promise(resolve => { window.addEventListener('popstate', resolve, { once: true }); history.back(); }); }
-    { window.scrollTo({ top: 0 }); $('search').focus({ preventScroll: true }); }
+    { window.scrollTo({ top: 0 }); focusFiguresNavigation(); }
   };
 });
 try { await cleanupInterruptedImports(); } catch { /* Refresh reports unavailable storage. */ }
